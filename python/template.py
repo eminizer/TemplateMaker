@@ -21,16 +21,15 @@ class Template(object) :
 		#Templates have modifiers associated with them
 		self.__modifier = modifier
 		#Dictionary of weightsums for function replacements
-		self.__weightsum_dict = {'NQQBAR':{'wname':None,'lm1_ps':0.,'lm1_fs':0.,'lm2_ps':0.,'lm2_fs':0.,'sm_ps':0.,'sm_fs':0.,'hm_ps':0.,'hm_fs':0.,},
-								 'NQ1':{'wname':'wqs1','lm1_ps':0.,'lm1_fs':0.,'lm2_ps':0.,'lm2_fs':0.,'sm_ps':0.,'sm_fs':0.,'hm_ps':0.,'hm_fs':0.,},
-								 'NQ2':{'wname':'wqs2','lm1_ps':0.,'lm1_fs':0.,'lm2_ps':0.,'lm2_fs':0.,'sm_ps':0.,'sm_fs':0.,'hm_ps':0.,'hm_fs':0.,},
-								 'NGG':{'wname':None,'lm1_ps':0.,'lm1_fs':0.,'lm2_ps':0.,'lm2_fs':0.,'sm_ps':0.,'sm_fs':0.,'hm_ps':0.,'hm_fs':0.,},
-								 'NG1':{'wname':'wg1','lm1_ps':0.,'lm1_fs':0.,'lm2_ps':0.,'lm2_fs':0.,'sm_ps':0.,'sm_fs':0.,'hm_ps':0.,'hm_fs':0.,},
-								 'NG2':{'wname':'wg2','lm1_ps':0.,'lm1_fs':0.,'lm2_ps':0.,'lm2_fs':0.,'sm_ps':0.,'sm_fs':0.,'hm_ps':0.,'hm_fs':0.,},
-								 'NG3':{'wname':'wg3','lm1_ps':0.,'lm1_fs':0.,'lm2_ps':0.,'lm2_fs':0.,'sm_ps':0.,'sm_fs':0.,'hm_ps':0.,'hm_fs':0.,},
-								 'NG4':{'wname':'wg4','lm1_ps':0.,'lm1_fs':0.,'lm2_ps':0.,'lm2_fs':0.,'sm_ps':0.,'sm_fs':0.,'hm_ps':0.,'hm_fs':0.,},
-								 'NBCK':{'wname':None,'lm1_ps':0.,'lm1_fs':0.,'lm2_ps':0.,'lm2_fs':0.,'sm_ps':0.,'sm_fs':0.,'hm_ps':0.,'hm_fs':0.,},
-								 'NNTMJ':{'wname':None,'lm1_ps':0.,'lm1_fs':0.,'lm2_ps':0.,'lm2_fs':0.,'sm_ps':0.,'sm_fs':0.,'hm_ps':0.,'hm_fs':0.,}}
+		self.__weightsum_dict = {'NQQBAR':{'wname':None,'sig':0.},
+								 'NQ1':{'wname':'wqs1','sig':0.},
+								 'NQ2':{'wname':'wqs2','sig':0.},
+								 'NGG':{'wname':None,'sig':0.},
+								 'NG1':{'wname':'wg1','sig':0.},
+								 'NG2':{'wname':'wg2','sig':0.},
+								 'NG3':{'wname':'wg3','sig':0.},
+								 'NG4':{'wname':'wg4','sig':0.},
+								 'NBCK':{'wname':None,'sig':0.}}
 		#Templates will eventually need a conversion function
 		self.__conversion_function = None
 		#Templates have 3D and 1D projection histograms
@@ -94,7 +93,7 @@ class Template(object) :
 							self.__weightsum_dict[weightsumname][identifier]+=eweight*branch_dict[wname+'_opp'].getPTreeValue()
 
 	#get the numbers of events in the regions specified by the keys of the event_numbers dictionary supplied
-	def getEventNumbers(self,channelcharge,jecappend,ttree_dict,branch_dict,const_rw_name_list,ss_rw_name_list,event_numbers,function,fit_par_list,extra_weight) :
+	def getEventNumbers(self,channelcharge,jecappend,ttree_dict,branch_dict,const_rw_name_list,ss_rw_list,event_numbers,function,fit_par_list,extra_weight) :
 		#for each region (and tree)
 		for ttree_identifier in event_numbers :
 			#First replace the total event numbers in the function
@@ -110,7 +109,7 @@ class Template(object) :
 			for entry in range(nEntries) :
 				tree.GetEntry(entry)
 				#get the event weight
-				eweight = self.__get_event_weight__(branch_dict,const_rw_name_list,ss_rw_name_list)
+				eweight = self.__get_event_weight__(branch_dict,const_rw_name_list,ss_rw_list)
 				eweight_opp = eweight
 				#multiply by the function weights if necessary
 				if functionstring!=None and functionstring!='' :
@@ -125,7 +124,7 @@ class Template(object) :
 					event_numbers[ttree_identifier]+=eweight_opp
 
 	#add the given tree to the template
-	def addTreeToTemplates(self,channelcharge,ttree_identifier,tree,branch_dict,const_rw_name_list,ss_rw_name_list,function,fit_par_list,extra_weight) :
+	def addTreeToTemplates(self,channelcharge,ttree_identifier,tree,branch_dict,const_rw_name_list,ss_rw_list,function,fit_par_list,extra_weight) :
 		#replace the total event numbers in the function
 		functionstring = self.__replace_function_string__(ttree_identifier,function,fit_par_list)
 		#loop over the tree
@@ -138,20 +137,15 @@ class Template(object) :
 #			n+=1 #DEBUG
 			tree.GetEntry(entry)
 			#get the event weight
-			eweight = self.__get_event_weight__(branch_dict,const_rw_name_list,ss_rw_name_list)
+			eweight = self.__get_event_weight__(branch_dict,const_rw_name_list,ss_rw_list)
 #			s = 'event weight = '+str(eweight) #DEBUG
-			#multiply by the weight from the conversion function
-			if self.__conversion_function!=None :
-#				print 'conv_func('+str(branch_dict['hadt_M'].getPTreeValue())+')='+str(self.__conversion_function.Eval(branch_dict['hadt_M'].getPTreeValue())) #DEBUG
-				eweight*=self.__conversion_function.Eval(branch_dict['hadt_M'].getPTreeValue())
-#				s+=', after conv. func. = '+str(eweight) #DEBUG
 			#multiply by the function weights
 			eweight_opp = eweight
 			if functionstring!=None and functionstring!='' :
 				fweight, fweight_opp = self.__get_function_weight__(branch_dict,functionstring)
 				eweight*=fweight; eweight_opp*=fweight_opp
 #				s+=', after func. weight = '+str(eweight) #DEBUG
-			#multiply by the last +/-1 factor or whatever
+			#multiply by the last +/-1 factor from the function call
 			eweight*=extra_weight; eweight_opp*=extra_weight
 #			s+=', after extra weight = '+str(eweight) #DEBUG
 			#add to the templates
@@ -161,19 +155,12 @@ class Template(object) :
 			if channelcharge==0 or branch_dict['Q_l'].getPTreeValue()==channelcharge:
 				self.Fill(x,y,z,eweight)
 #				added+=eweight #DEBUG
-			if branch_dict['addTwice'].getPTreeValue()==1 and (channelcharge==0 or branch_dict['Q_l'].getPTreeValue()!=channelcharge) :
+			if branch_dict['addTwice'].getPTreeValue()==1 and (channelcharge==0 or branch_dict['Q_l'].getPTreeValue()==(-1*channelcharge)) :
 				self.Fill(-1.0*x,y,z,eweight_opp)
 #				added+=eweight_opp #DEBUG
 #			s+=' (weightsum = '+str(added)+', n = '+str(n)+')' #DEBUG
 #			print s #DEBUG
 #		print 'TEMPLATE '+self.__name+' INTEGRAL = '+str(self.__histo_3D.Integral())+' (total weight added = '+str(added)+')' #DEBUG
-
-	def fixNNTMJValues(self) :
-		value = self.__histo_3D.Integral()
-		print '		Signal region NNTMJ for template '+self.__name+' = '+str(value)
-		return value
-	def setNNTMJValue(self,value) :
-		self.__weightsum_dict['NNTMJ']['sm_ps']=value
 
 	#Fill the histograms given x, y, and z values
 	def Fill(self,x,y,z,w) :
@@ -252,7 +239,7 @@ class Template(object) :
 		return self.__histo_z
 	#Private methods
 	#get the weight for this event based on reweights
-	def __get_event_weight__(self,branch_dict,const_rw_name_list,ss_rw_name_list) :
+	def __get_event_weight__(self,branch_dict,const_rw_name_list,ss_rw_list) :
 		eweight = 1.0
 		mod = self.__modifier
 		#constant reweights
@@ -262,26 +249,27 @@ class Template(object) :
 				eweight*=branch_dict[constrw].getPTreeValue()
 		#		s+= 'after const rw'+constrw+' = '+str(eweight)+', ' #DEBUG
 		#simple systematics
-		if ss_rw_name_list!=None :
-			for ss in ss_rw_name_list :
-				if mod!=None and mod.isSSModifier() and mod.getName()==ss :
+		if ss_rw_list!=None :
+			ss_weights = [1.0,1.0] #BtoF first, then GH
+			for ss in ss_rw_list :
+				ssname = ss.getName()
+				thisValueBtoF = 1.0; thisValueGH = 1.0
+				if mod!=None and mod.isSSModifier() and mod.getName()==ssname :
 					if self.__name.find('__up')!=-1 :
-						eweight*=branch_dict[mod.getPTreeNameUp()].getPTreeValue()
+						thisValueBtoF=branch_dict[ssname+'_BtoF_up'].getPTreeValue()
+						thisValueGH=branch_dict[ssname+'_GH_up'].getPTreeValue()
 					elif self.__name.find('__down')!=-1 :
-						eweight*=branch_dict[mod.getPTreeNameDown()].getPTreeValue()
+						thisValueBtoF=branch_dict[ssname+'_BtoF_down'].getPTreeValue()
+						thisValueGH=branch_dict[ssname+'_GH_down'].getPTreeValue()
 				else :
-					eweight*=branch_dict[ss].getPTreeValue()
-		#		s+='after '+ss+' rw = '+str(eweight)+', ' #DEBUG
-		#PDF reweight
-		if 'pdf_weights' in branch_dict.keys() :
-			if mod!=None and mod.isPDFModifier() :
-				if self.__name.find('__up')!=-1 :
-					eweight*=branch_dict['pdf_weights'].getPTreeValueAtIndex(mod.getUpIndex())
-				elif self.__name.find('__down')!=-1 :
-					eweight*=branch_dict['pdf_weights'].getPTreeValueAtIndex(mod.getDownIndex())
-			else :
-				eweight*=branch_dict['pdf_weights'].getPTreeValueAtIndex(0)
-		#	s+='after PDF rw = '+str(eweight)+', ' #DEBUG
+					if ss.isSplit() :
+						thisValueBtoF = branch_dict[ssname+'_BtoF'].getPTreeValue()
+						thisValueGH   = branch_dict[ssname+'_GH'].getPTreeValue()
+					else :
+						thisValueBtoF = thisValueGH = branch_dict[ssname].getPTreeValue()
+				ss_weights[0]*=thisValueBtoF; ss_weights[1]*=thisValueGH
+			eweight*=ss_weights[0]+ss_weights[1]
+		#		s+='after systematics rw = '+str(eweight)+', ' #DEBUG
 		#half the weight if we're adding it twice
 		if branch_dict['addTwice'].getPTreeValue() == 1 :
 			eweight*=0.5
@@ -296,15 +284,12 @@ class Template(object) :
 		ngg = self.__weightsum_dict['NGG'][ttree_identifier]
 		nqq = self.__weightsum_dict['NQQBAR'][ttree_identifier]
 		nbck = self.__weightsum_dict['NBCK'][ttree_identifier]
-		nntmj = self.__weightsum_dict['NNTMJ'][ttree_identifier]
 		others_list = ['NG1','NG2','NG3','NG4','NQ1','NQ2']
 		for s in fssen :
 			if s == 'NTOT' :
 				newfunction1+='('+str(ngg+nqq+nbck+nntmj)+')'
 			elif s == 'NBCK' :
 				newfunction1+='('+str(nbck)+')'
-			elif s == 'NNTMJ' :
-				newfunction1+='('+str(nntmj)+')'
 			elif s == 'NTTBAR' :
 				newfunction1+='('+str(ngg+nqq)+')'
 			elif s == 'NQQBAR' :

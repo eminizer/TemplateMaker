@@ -1,45 +1,31 @@
 import copy
-from process import MC_Process, NTMJ_Process, Data_Process
-
-#Lepton_Type class
-class Lepton_Type(object) :
-	
-	def __init__(self,name) :
-		self.__name = name #lepton flavor name
-
-	#Getters/Setters/Adders
-	def getLepType(self) :
-		return self.__name
-
-	def __del__(self) :
-		pass
-
-	def __str__(self) :
-		s = self.__name
-		return s
+from process import MC_Process, Data_Process
 
 #Channel subclass
-class Channel(Lepton_Type) :
+class Channel(object) :
 
 	#process names
 	__mc_process_names = ['fgg','fqq','fbck']
-	__ntmj_process_names = ['fntmj']
 	__data_process_names = ['DATA']
 
-	def __init__(self,name,fit_parameter_tuple,include_PDF,include_JEC,include_sss) :
+	def __init__(self,name,fit_parameter_tuple,include_JEC,include_sss) :
+		#find the event topology in this channel
+		self.__topology = autoset_topology(name)
 		#find the lepton flavor in this channel
-		leptontypename = autoset_lepton_type_name(name)
-		#initialize the Lepton_Type
-		Lepton_Type.__init__(self,leptontypename)
+		self.__lep_type = autoset_lepton_type_name(name)
 		#Set the channel name and charge from the name
 		self.__name = name
 		self.__charge = autoset_charge(name)
 		#Make the list of processes that will be in this channel, with all of the wiggles necessary
-		self.__process_list = self.__make_process_list__(fit_parameter_tuple,include_PDF,include_JEC,include_sss)
+		self.__process_list = self.__make_process_list__(fit_parameter_tuple,include_JEC,include_sss)
 
 	#Getters/Setters/Adders
 	def getName(self) :
 		return self.__name
+	def getTopology(self) :
+		return self.__topology
+	def getLepType(self) :
+		return self.__lep_type
 	def getCharge(self) :
 		return self.__charge
 	def getProcessList(self) :
@@ -47,16 +33,11 @@ class Channel(Lepton_Type) :
 
 	#Internal class functions
 	#Make the list of processes in this channel
-	def __make_process_list__(self,fit_parameter_tuple,include_PDF,include_JEC,include_sss) :
+	def __make_process_list__(self,fit_parameter_tuple,include_JEC,include_sss) :
 		channel_plist = []
 		#first add the MC processes
 		for mpn in self.__mc_process_names :
-			channel_plist.append(MC_Process(self.__name+'__'+mpn,fit_parameter_tuple,include_PDF,include_JEC,include_sss))
-		#copy the list so we can associate it with the NTMJ process
-		mc_plist = copy.copy(channel_plist)
-		#add the NTMJ processes
-		for npn in self.__ntmj_process_names :
-			channel_plist.append(NTMJ_Process(self.__name+'__'+npn,fit_parameter_tuple,mc_plist,include_PDF,include_JEC,include_sss))
+			channel_plist.append(MC_Process(self.__name+'__'+mpn,fit_parameter_tuple,include_JEC,include_sss))
 		#add the DATA processes
 		for dpn in self.__data_process_names :
 			channel_plist.append(Data_Process(self.__name+'__'+dpn))
@@ -66,7 +47,7 @@ class Channel(Lepton_Type) :
 		pass
 
 	def __str__(self) :
-		s = 'Channel: (name:%s, leptype:%s, charge:%i, \n'%(self.__name,Lepton_Type.__str__(self),self.__charge)
+		s = 'Channel: (name:%s, leptype:%s, charge:%i, \n'%(self.__name,self.__lep_type,self.__charge)
 		s+= '			process_list = ['
 		for i in range(len(self.__process_list)) :
 			proc = self.__process_list[i]
@@ -80,12 +61,16 @@ class Channel(Lepton_Type) :
 				s+=',\n'
 		return s
 
+#returns the topology name based on the channel name
+def autoset_topology(name) :
+	return name[:2]
+
 #Automatically returns the lepton type name based on the channel name
 def autoset_lepton_type_name(name) :
 	leptontypename = ''
-	if name.startswith('mu') :
+	if name[3:].startswith('mu') :
 		leptontypename = 'mu'
-	elif name.startswith('el') :
+	elif name[3:].startswith('el') :
 		leptontypename = 'el'
 	else :
 		print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'

@@ -1,62 +1,29 @@
-#qqbar semileptonic ttbar signal
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_qq_semilep_TT_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_qq_semilep_TT_JES_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_qq_semilep_TT_JES_down_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_qq_semilep_TT_JER_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_qq_semilep_TT_JER_down_skim_all.root
+# ttbar signal and background
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/powheg_TT_skim_all.root
 #
-#gg semileptonic ttbar signal
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_gg_semilep_TT_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_gg_semilep_TT_JES_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_gg_semilep_TT_JES_down_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_gg_semilep_TT_JER_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_gg_semilep_TT_JER_down_skim_all.root
+# Single Top background
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/ST_s-c_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/ST_t-c_top_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/ST_t-c_antitop_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/ST_tW-c_top_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/ST_tW-c_antitop_skim_all.root
 #
-#dileptonic ttbar background
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_dilep_TT_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_dilep_TT_JES_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_dilep_TT_JES_down_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_dilep_TT_JER_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_dilep_TT_JER_down_skim_all.root
+# Single Muon data
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/SingleMu_Run2016Bv2_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/SingleMu_Run2016C_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/SingleMu_Run2016D_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/SingleMu_Run2016E_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/SingleMu_Run2016F_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/SingleMu_Run2016G_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/SingleMu_Run2016Hv2_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/SingleMu_Run2016Hv3_skim_all.root
 #
-#hadronic ttbar background
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_had_TT_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_had_TT_JES_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_had_TT_JES_down_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_had_TT_JER_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/mcatnlo_had_TT_JER_down_skim_all.root
-#
-#Single Top background
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_s-c_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_s-c_JES_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_s-c_JES_down_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_s-c_JER_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_s-c_JER_down_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_t-c_top_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_t-c_top_JES_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_t-c_top_JES_down_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_t-c_top_JER_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_t-c_top_JER_down_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_t-c_antitop_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_t-c_antitop_JES_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_t-c_antitop_JES_down_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_t-c_antitop_JER_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_t-c_antitop_JER_down_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_tW-c_top_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_tW-c_top_JES_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_tW-c_top_JES_down_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_tW-c_top_JER_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_tW-c_top_JER_down_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_tW-c_antitop_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_tW-c_antitop_JES_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_tW-c_antitop_JES_down_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_tW-c_antitop_JER_up_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/ST_tW-c_antitop_JER_down_skim_all.root
-#
-#Data to subtract from to get NTMJ estimate
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/SingleMu_Run2016Bv2_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/SingleMu_Run2016C_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/SingleMu_Run2016D_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/SingleEl_Run2016Bv2_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/SingleEl_Run2016C_skim_all.root
-/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_20/src/Analysis/Reconstructor/test/total_ttree_files/SingleEl_Run2016D_skim_all.root
+# Single Electron Data
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/SingleEl_Run2016Bv2_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/SingleEl_Run2016C_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/SingleEl_Run2016D_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/SingleEl_Run2016E_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/SingleEl_Run2016F_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/SingleEl_Run2016G_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/SingleEl_Run2016Hv2_skim_all.root
+/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_0_26_patch1/src/Analysis/Reconstructor/test/total_ttree_files/SingleEl_Run2016Hv3_skim_all.root
