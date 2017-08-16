@@ -57,7 +57,7 @@ class Template_Group(object) :
 		#for every event in the file
 		for entry in range(nEntries) :
 			percentdone = 100.*entry/nEntries
-			if percentdone%10.<100./nEntries and percentdone%10.<((100.*(entry-1)/nEntries)%10.) :
+			if percentdone%1.<100./nEntries and percentdone%1.<((100.*(entry-1)/nEntries)%1.) :
 				print '		%d%% done (%d out of %d)'%(percentdone,entry,nEntries)
 			#set branch addresses for cuts
 			for branch in self.__ttree_cut_branches.values() :
@@ -96,11 +96,11 @@ class Template_Group(object) :
 					bdict['contrib_weight'].getPTreeArray()[0] = contrib_weight
 					if 'lumi_BtoF' in bdict.keys() :
 						if process.isMCProcess() :
-							if self.__ttree_cut_branches['lepflavor']==1 :
+							if lepflav==1 :
 								bdict['lumi_BtoF'].getPTreeArray()[0] = self.__LUMINOSITY_BTOF_MU
 								bdict['lumi_BtoF_up'].getPTreeArray()[0] = (1.0+self.__LUMI_MIN_BIAS)*self.__LUMINOSITY_BTOF_MU
 								bdict['lumi_BtoF_down'].getPTreeArray()[0] = (1.0-self.__LUMI_MIN_BIAS)*self.__LUMINOSITY_BTOF_MU
-							elif self.__ttree_cut_branches['lepflavor']==2 :
+							elif lepflav==2 :
 								bdict['lumi_BtoF'].getPTreeArray()[0] = self.__LUMINOSITY_BTOF_EL
 								bdict['lumi_BtoF_up'].getPTreeArray()[0] = (1.0+self.__LUMI_MIN_BIAS)*self.__LUMINOSITY_BTOF_EL
 								bdict['lumi_BtoF_down'].getPTreeArray()[0] = (1.0-self.__LUMI_MIN_BIAS)*self.__LUMINOSITY_BTOF_EL
@@ -110,11 +110,11 @@ class Template_Group(object) :
 							bdict['lumi_BtoF_down'].getPTreeArray()[0] = 1.0
 					if 'lumi_GH' in bdict.keys() :
 						if process.isMCProcess() :
-							if self.__ttree_cut_branches['lepflavor']==1 :
+							if lepflav==1 :
 								bdict['lumi_GH'].getPTreeArray()[0] = self.__LUMINOSITY_GH_MU
 								bdict['lumi_GH_up'].getPTreeArray()[0] = (1.0+self.__LUMI_MIN_BIAS)*self.__LUMINOSITY_GH_MU
 								bdict['lumi_GH_down'].getPTreeArray()[0] = (1.0-self.__LUMI_MIN_BIAS)*self.__LUMINOSITY_GH_MU
-							elif self.__ttree_cut_branches['lepflavor']==2 :
+							elif lepflav==2 :
 								bdict['lumi_GH'].getPTreeArray()[0] = self.__LUMINOSITY_GH_EL
 								bdict['lumi_GH_up'].getPTreeArray()[0] = (1.0+self.__LUMI_MIN_BIAS)*self.__LUMINOSITY_GH_EL
 								bdict['lumi_GH_down'].getPTreeArray()[0] = (1.0-self.__LUMI_MIN_BIAS)*self.__LUMINOSITY_GH_EL

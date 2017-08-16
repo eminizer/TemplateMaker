@@ -43,9 +43,11 @@ output_name = options.out_name
 if not output_name.endswith('.root') :
 	output_name+='.root'
 output_name_aux = output_name.split('.root')[0]+'_aux.root'
+output_name_trees = output_name.split('.root')[0]+'_trees.root'
 #Create the template and auxiliary output files
 outputfile = TFile(output_name,'recreate')
 outputfile_aux = TFile(output_name_aux,'recreate')
+outputfile_trees = TFile(output_name_trees,'recreate')
 #make the list of fit parameters based on input options
 rqqbar = ('Rqqbar',options.Rqqbar,options.Rqqbar_sigma,options.fix_Rqqbar.lower()=='yes')
 rbck   = ('Rbck',  options.Rbck,  options.Rbck_sigma,  options.fix_Rbck.lower()=='yes')
@@ -78,9 +80,10 @@ for line in input_file :
 		print '	Done'
 #write the trees to the auxiliary output file
 process_tree_list = templates.get_list_of_process_trees()
-outputfile_aux.cd()
+outputfile_trees.cd()
 for process_tree in process_tree_list :
 	process_tree.Write()
+outputfile_trees.Close()
 print 'Done'
 #Build the templates
 print 'Building DATA and MC-based templates'
