@@ -1,4 +1,4 @@
-from ROOT import TH3D, TH1D
+from ROOT import TH3D, TH1D, TFile
 from array import array
 from math import *
 
@@ -33,7 +33,7 @@ class Template(object) :
 		#Templates will eventually need a conversion function
 		self.__conversion_function = None
 		#Templates have 3D and 1D projection histograms
-		self.__histo_3D = TH3D(name,	   formatted_name+'; c*; |x_{F}|; M (GeV)',len(self.__XBINS)-1,self.__XBINS,len(self.__YBINS)-1,self.__YBINS,len(self.__ZBINS)-1,self.__ZBINS)
+		self.__histo_3D = TH3D(name,formatted_name+'; c*; |x_{F}|; M (GeV)',len(self.__XBINS)-1,self.__XBINS,len(self.__YBINS)-1,self.__YBINS,len(self.__ZBINS)-1,self.__ZBINS)
 		self.__histo_x  = TH1D(name+'_x',formatted_name+' X Projection; c*',len(self.__XBINS)-1,self.__XBINS)
 		self.__histo_y  = TH1D(name+'_y',formatted_name+' Y Projection; |x_{F}|',len(self.__YBINS)-1,self.__YBINS)
 		self.__histo_z  = TH1D(name+'_z',formatted_name+' Z Projection; M (GeV)',len(self.__ZBINS)-1,self.__ZBINS)
@@ -41,7 +41,7 @@ class Template(object) :
 		self.__histo_3D.SetDirectory(0); self.__histo_x.SetDirectory(0); self.__histo_y.SetDirectory(0); self.__histo_z.SetDirectory(0)
 
 	#get the event numbers for this process
-	def buildWeightsums(self,ttree_dict,branch_dict,const_rw_name_list,ss_rw_name_list,JEC_append,channelcharge) :
+	def buildWeightsums(self,ttree_dict,branch_dict,const_rw_name_list,ss_rw_name_list,JEC_append,channelcharge,ptfn) :
 		#Make a list of weightsum names that we'll be building
 		weightsum_names = []
 		for name in self.__weightsum_dict :
@@ -54,9 +54,6 @@ class Template(object) :
 			elif self.__name.find('fbck')!=-1 :
 				if name.find('NBCK')!=-1 :
 					weightsum_names.append(name)
-			elif self.__name.find('fntmj')!=-1 :
-				if name.find('NNTMJ')!=-1 :
-					weightsum_names.append(name)
 		#Make a list of ttree identifiers
 		ttree_identifiers = []
 		for name in self.__weightsum_dict[weightsum_names[0]] :
@@ -65,7 +62,8 @@ class Template(object) :
 		#open each tree
 		for identifier in ttree_identifiers :
 			realidentifier = identifier+JEC_append
-			tree = ttree_dict[realidentifier]
+			filep = TFile(ptfn)
+			tree = filep.Get(ttree_dict[realidentifier].GetName())
 			#set branch addresses
 			for branch in branch_dict.values() :
 				tree.SetBranchAddress(branch.getPTreeName(),branch.getPTreeArray())
@@ -87,10 +85,11 @@ class Template(object) :
 					else :
 						if wname==None :
 							self.__weightsum_dict[weightsumname][identifier]+=eweight
-						elif branch_dict['Q_l'].getPTreeValue()==channelcharge :
+						elif branch_dict['lep_Q'].getPTreeValue()==channelcharge :
 							self.__weightsum_dict[weightsumname][identifier]+=eweight*branch_dict[wname].getPTreeValue()
-						elif branch_dict['Q_l'].getPTreeValue()!=channelcharge :
+						elif branch_dict['lep_Q'].getPTreeValue()!=channelcharge :
 							self.__weightsum_dict[weightsumname][identifier]+=eweight*branch_dict[wname+'_opp'].getPTreeValue()
+			filep.Close()
 
 	#get the numbers of events in the regions specified by the keys of the event_numbers dictionary supplied
 	def getEventNumbers(self,channelcharge,jecappend,ttree_dict,branch_dict,const_rw_name_list,ss_rw_list,event_numbers,function,fit_par_list,extra_weight) :
@@ -118,15 +117,17 @@ class Template(object) :
 				#multiply by the last +/-1 factor or whatever
 				eweight*=extra_weight; eweight_opp*=extra_weight
 				#add to the event numbers
-				if channelcharge==0 or branch_dict['Q_l'].getPTreeValue()==channelcharge:
+				if channelcharge==0 or branch_dict['lep_Q'].getPTreeValue()==channelcharge:
 					event_numbers[ttree_identifier]+=eweight
-				if branch_dict['addTwice'].getPTreeValue()==1 and (channelcharge==0 or branch_dict['Q_l'].getPTreeValue()!=channelcharge) :
+				if branch_dict['addTwice'].getPTreeValue()==1 and (channelcharge==0 or branch_dict['lep_Q'].getPTreeValue()!=channelcharge) :
 					event_numbers[ttree_identifier]+=eweight_opp
 
 	#add the given tree to the template
-	def addTreeToTemplates(self,channelcharge,ttree_identifier,tree,branch_dict,const_rw_name_list,ss_rw_list,function,fit_par_list,extra_weight) :
+	def addTreeToTemplates(self,channelcharge,ttree_identifier,tree,branch_dict,const_rw_name_list,ss_rw_list,function,fit_par_list,extra_weight,ptfn,pb) :
 		#replace the total event numbers in the function
 		functionstring = self.__replace_function_string__(ttree_identifier,function,fit_par_list)
+		filep = TFile(ptfn)
+		tree = filep.Get(tree.GetName())
 		#loop over the tree
 		for branch in branch_dict.values() :
 			tree.SetBranchAddress(branch.getPTreeName(),branch.getPTreeArray())
@@ -134,6 +135,10 @@ class Template(object) :
 #		added = 0 #DEBUG
 #		n=0 #DEBUG
 		for entry in range(nEntries) :
+			if pb :
+				percentdone = 100.*entry/nEntries
+				if percentdone%1.<100./nEntries and percentdone%10.<((100.*(entry-1)/nEntries)%10.) :
+					print '		%d%% done'%(percentdone)
 #			n+=1 #DEBUG
 			tree.GetEntry(entry)
 			#get the event weight
@@ -152,10 +157,10 @@ class Template(object) :
 			x = branch_dict['cstar'].getPTreeValue()
 			y = abs(branch_dict['x_F'].getPTreeValue())
 			z = branch_dict['M'].getPTreeValue()
-			if channelcharge==0 or branch_dict['Q_l'].getPTreeValue()==channelcharge:
+			if channelcharge==0 or branch_dict['lep_Q'].getPTreeValue()==channelcharge:
 				self.Fill(x,y,z,eweight)
 #				added+=eweight #DEBUG
-			if branch_dict['addTwice'].getPTreeValue()==1 and (channelcharge==0 or branch_dict['Q_l'].getPTreeValue()==(-1*channelcharge)) :
+			if branch_dict['addTwice'].getPTreeValue()==1 and (channelcharge==0 or branch_dict['lep_Q'].getPTreeValue()==(-1*channelcharge)) :
 				self.Fill(-1.0*x,y,z,eweight_opp)
 #				added+=eweight_opp #DEBUG
 #			s+=' (weightsum = '+str(added)+', n = '+str(n)+')' #DEBUG
@@ -237,6 +242,13 @@ class Template(object) :
 		return self.__histo_y
 	def getHistoZ(self) :
 		return self.__histo_z
+	def getHistos(self) :
+		return [self.__histo_3D,self.__histo_x,self.__histo_y,self.__histo_z]
+	def setHistos(self,hlist) :
+		self.__histo_3D = hlist[0]
+		self.__histo_x  = hlist[1]
+		self.__histo_y  = hlist[2]
+		self.__histo_z  = hlist[3]
 	#Private methods
 	#get the weight for this event based on reweights
 	def __get_event_weight__(self,branch_dict,const_rw_name_list,ss_rw_list) :
@@ -256,11 +268,17 @@ class Template(object) :
 				thisValueBtoF = 1.0; thisValueGH = 1.0
 				if mod!=None and mod.isSSModifier() and mod.getName()==ssname :
 					if self.__name.find('__up')!=-1 :
-						thisValueBtoF=branch_dict[ssname+'_BtoF_up'].getPTreeValue()
-						thisValueGH=branch_dict[ssname+'_GH_up'].getPTreeValue()
+						if ss.isSplit() :
+							thisValueBtoF=branch_dict[ssname+'_BtoF_up'].getPTreeValue()
+							thisValueGH=branch_dict[ssname+'_GH_up'].getPTreeValue()
+						else :
+							thisValueBtoF = thisValueGH = branch_dict[ssname+'_up'].getPTreeValue()
 					elif self.__name.find('__down')!=-1 :
-						thisValueBtoF=branch_dict[ssname+'_BtoF_down'].getPTreeValue()
-						thisValueGH=branch_dict[ssname+'_GH_down'].getPTreeValue()
+						if ss.isSplit() :
+							thisValueBtoF=branch_dict[ssname+'_BtoF_down'].getPTreeValue()
+							thisValueGH=branch_dict[ssname+'_GH_down'].getPTreeValue()
+						else :
+							thisValueBtoF = thisValueGH = branch_dict[ssname+'_down'].getPTreeValue()
 				else :
 					if ss.isSplit() :
 						thisValueBtoF = branch_dict[ssname+'_BtoF'].getPTreeValue()
@@ -287,7 +305,7 @@ class Template(object) :
 		others_list = ['NG1','NG2','NG3','NG4','NQ1','NQ2']
 		for s in fssen :
 			if s == 'NTOT' :
-				newfunction1+='('+str(ngg+nqq+nbck+nntmj)+')'
+				newfunction1+='('+str(ngg+nqq+nbck)+')'
 			elif s == 'NBCK' :
 				newfunction1+='('+str(nbck)+')'
 			elif s == 'NTTBAR' :

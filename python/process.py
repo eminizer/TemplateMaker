@@ -1,5 +1,6 @@
 import copy
 from ROOT import TTree
+import multiprocessing
 from modifier import Fit_Parameter, JEC_Modifier, Simple_Systematic
 from branch import Branch
 from template import Template
@@ -91,20 +92,6 @@ class Process(object) :
 		self.__ss_modifier_list.append(ssmod)
 	def addBranch(self,branch) :
 		self.__branch_dict[branch.getPTreeName()]=branch
-	def fillTree(self,ttree_file_path) :
-		treestring = 'sig'
-		#If it's a MC distribution, add the JEC part of the name to the tree identifier if necessary
-		if self.isMCProcess() and (ttree_file_path.find('_up')!=-1 or ttree_file_path.find('_down')!=-1) :
-			JEC_ID = ''
-			for jecmod in self.__jec_modifier_list :
-				if ttree_file_path.find(jecmod.getName()+'_up') != -1 :
-					JEC_ID = jecmod.getName()+'__up'
-					break
-				elif ttree_file_path.find(jecmod.getName()+'_down') != -1 :
-					JEC_ID = jecmod.getName()+'__down'
-					break
-			treestring+='_'+JEC_ID
-		self.__tree_dict[treestring].Fill()
 
 	#Private class functions
 	#Add templates required by the current list of fit parameters
@@ -210,17 +197,17 @@ class MC_Process(Process) :
 							('sf_scale_comb','comb_scale_weight',False),
 							('sf_pdf_alphas','pdfas_weight',False),
 							(None,'lumi',True)]
-	#list of event reweighting factors
-	__event_reweights = ['wg1','wg2','wg3','wg4','wqs1','wqs2','wqa0','wqa1','wqa2',
-						 'wg1_opp','wg2_opp','wg3_opp','wg4_opp','wqs1_opp','wqs2_opp','wqa0_opp','wqa1_opp','wqa2_opp',
-						 'wega','wegc']
+	#list of event reweighting factors for qqbar and gg distributions
+	__qqbar_rws = ['wqs1','wqs2','wqa0','wqa1','wqa2','wqs1_opp','wqs2_opp','wqa0_opp','wqa1_opp','wqa2_opp']
+	__gg_rws = ['wg1','wg2','wg3','wg4','wg1_opp','wg2_opp','wg3_opp','wg4_opp']
+	__other_rws	= ['wega','wegc']
 
 	def __init__(self,name,fit_parameter_tuple,include_JEC,include_sss) :
 		#Set up the Process for this MC_Process
 		Process.__init__(self,name,fit_parameter_tuple)
 		self.__add_fit_parameter_templates__()
-		self.__make_JEC_modifier_list__(self.__JEC_names)
 		if include_JEC :
+			self.__make_JEC_modifier_list__(self.__JEC_names)
 			self.__add_JEC_templates__()
 		self.__make_ss_modifier_list__(self.__simple_systematics)
 		if include_sss :
@@ -229,32 +216,48 @@ class MC_Process(Process) :
 		self.__add_to_dict_of_branches__()
 		#Add the JEC trees to the dictionary
 		self.__add_JEC_trees__()
-		#Initialize the tree
-		self.__initialize_trees__()
 
 	#Public functions
-	def buildWeightsums(self,channelcharge) :
+	def buildWeightsums(self,channelcharge,ptfn) :
+		procs = []
+		pipe_ends = []
 		for t in self.getTemplateList() :
-			JEC_append = ''
-			mod = t.getModifier()
-			if mod!=None and mod.isJECModifier() :
-				JEC_append = '_'+t.getType()
-			print '		Doing template '+t.getName()
-			t.buildWeightsums(self.getTreeDict(),self.getBranchDict(),self.__const_reweights_ptrees,self.getSSModifierList(),JEC_append,channelcharge)
+			p_wsd, c_wsd = multiprocessing.Pipe()
+			p = multiprocessing.Process(target=buildWeightsumsParallel, args=(c_wsd,t,copy.deepcopy(self.getTreeDict()),copy.deepcopy(self.getBranchDict()),
+																			  self.__const_reweights_ptrees,self.getSSModifierList(),channelcharge,ptfn))
+			p.start()
+			procs.append(p)
+			pipe_ends.append((p_wsd,t))
+		for item in pipe_ends :
+			item[1].setWeightsumDict(item[0].recv())
+		for p in procs :
+			p.join()
 
-	def buildTemplates(self,channelcharge) :
+	def buildTemplates(self,channelcharge,ptfn) :
+		print '	Building templates for process %s...'%(self.getName())
+		procs = []
+		pipe_ends = []
 		#for each template
-		for t in self.getTemplateList() :
-			print '	Building template '+t.getName()
+		tlist = self.getTemplateList()
+		for i in range(len(tlist)) :
+			t = tlist[i]
+			p_hl, c_hl = multiprocessing.Pipe()
 			#make the JEC append
 			JEC_append = ''
 			mod = t.getModifier()
 			if mod!=None and mod.isJECModifier() :
 				JEC_append = '_'+t.getType()
-			#add all of the MC events
-			t.addTreeToTemplates(channelcharge,'sig',self.getTreeDict()['sig'+JEC_append],self.getBranchDict(),self.getConstantReweightsPTreesList(),
-								 self.getSSModifierList(),self.getBaseFunction(),self.getFitParameterList(),1.0)
-
+			p = multiprocessing.Process(target=buildTemplatesParallel, args=(c_hl,t,channelcharge,copy.deepcopy(self.getTreeDict()['sig'+JEC_append]),
+																			 copy.deepcopy(self.getBranchDict()),self.getConstantReweightsPTreesList(),
+								 											 self.getSSModifierList(),self.getBaseFunction(),self.getFitParameterList(),ptfn,
+								 											 i==len(tlist)-1))
+			p.start()
+			procs.append(p)
+			pipe_ends.append((p_hl,t))
+		for item in pipe_ends :
+			item[1].setHistos(item[0].recv())
+		for p in procs :
+			p.join()
 
 	#Getters/Setters/Adders
 	def getConstantReweightsTTreesList(self) :
@@ -301,9 +304,14 @@ class MC_Process(Process) :
 					self.addBranch(Branch(None,ptree_name+'_up','f',1.0))
 					self.addBranch(Branch(None,ptree_name+'_down','f',1.0))
 		#event reweights
-		for i in range(len(self.__event_reweights)) :
-			rw = self.__event_reweights[i]
-			self.addBranch(Branch(rw,rw,'f',1.0))
+		if self.getName().find('fqq')!=-1 :
+			for i in range(len(self.__qqbar_rws)) :
+				rw = self.__qqbar_rws[i]
+				self.addBranch(Branch(rw,rw,'f',1.0))	
+		elif self.getName().find('fgg')!=-1 :
+			for i in range(len(self.__gg_rws)) :
+				rw = self.__gg_rws[i]
+				self.addBranch(Branch(rw,rw,'f',1.0))
 
 	def __del__(self) :
 		pass
@@ -365,13 +373,25 @@ class Data_Process(Process) :
 		#Initialize the tree
 		Process.__initialize_trees__(self)
 
-	def buildTemplates(self,channelcharge) :
+	def buildTemplates(self,channelcharge,ptfn) :
+		print '	Building templates for process %s...'%(self.getName())
+		procs = []
+		pipe_ends = []
 		#for each template
-		for t in Process.getTemplateList(self) :
-			print '	Building template '+t.getName()
-			#add all of the MC events
-			t.addTreeToTemplates(channelcharge,'sig',self.getTreeDict()['sig'],self.getBranchDict(),None,
-								 None,self.getBaseFunction(),self.getFitParameterList(),1.0)
+		tlist = self.getTemplateList()
+		for i in range(len(tlist)) :
+			t = tlist[i]
+			p_hl, c_hl = multiprocessing.Pipe()
+			p = multiprocessing.Process(target=buildTemplatesParallel,args=(c_hl,t,channelcharge,copy.deepcopy(self.getTreeDict()['sig']),
+																			copy.deepcopy(self.getBranchDict()),None,None,self.getBaseFunction(),
+																			self.getFitParameterList(),ptfn,i==len(tlist)-1))
+			p.start()
+			procs.append(p)
+			pipe_ends.append((p_hl,t))
+		for item in pipe_ends :
+			item[1].setHistos(item[0].recv())
+		for p in procs :
+			p.join()
 
 	def __del__(self) :
 		pass
@@ -406,5 +426,22 @@ def make_fit_parameter_list(func,fit_parameter_tuple) :
 			if fit_par[0] in fs :
 				fit_parameter_list.append(Fit_Parameter(fit_par[0],fit_par[1],fit_par[2],fit_par[3]))
 	return fit_parameter_list
+
+def buildWeightsumsParallel(child_weightsumdict,t,ttd,bd,crws,ssrws,channelcharge,ptfn) :
+	JEC_append = ''
+	mod = t.getModifier()
+	if mod!=None and mod.isJECModifier() :
+		JEC_append = '_'+t.getType()
+	print '		Doing template '+t.getName()
+	t.buildWeightsums(ttd,bd,crws,ssrws,JEC_append,channelcharge,ptfn)
+	child_weightsumdict.send(t.getWeightsumDict())
+	child_weightsumdict.close()
+
+def buildTemplatesParallel(child_histolist,t,channelcharge,thistree,bd,crws,ssrws,bf,fpl,ptfn,pb) :
+	print '		Building template '+t.getName()
+	#add all of the MC events
+	t.addTreeToTemplates(channelcharge,'sig',thistree,bd,crws,ssrws,bf,fpl,1.0,ptfn,pb)
+	child_histolist.send(t.getHistos())
+	child_histolist.close()
 
 

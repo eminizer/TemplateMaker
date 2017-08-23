@@ -4,18 +4,20 @@ from array import array
 from ROOT import TFile, TTree, TF1, TCanvas, TLegend, TGraphErrors, TVirtualFitter, kBlue
 from channel import Channel
 from branch import Branch
+import multiprocessing
+import os
+
+#Luminosities
+LUMINOSITY_BTOF_MU = 19690.184
+LUMINOSITY_BTOF_EL = 19171.010
+LUMINOSITY_GH_MU   = 16226.452
+LUMINOSITY_GH_EL   = 16214.862
+LUMI_MIN_BIAS = 0.026
 
 #Template_Group class
 class Template_Group(object) :
 
-	#Luminosities
-	__LUMINOSITY_BTOF_MU = 19690.184
-	__LUMINOSITY_BTOF_EL = 19171.010
-	__LUMINOSITY_GH_MU   = 16226.452
-	__LUMINOSITY_GH_EL   = 16214.862
-	__LUMI_MIN_BIAS = 0.026
-
-	def __init__(self,fit_parameter_tuple,sum_charges,include_mu,include_el,topology_list,include_JEC,include_sss) :
+	def __init__(self,fit_parameter_tuple,outname,sum_charges,include_mu,include_el,topology_list,include_JEC,include_sss) :
 		#switches for which templates to auto-create
 		self.__include_JEC = include_JEC
 		self.__include_mu = include_mu
@@ -23,6 +25,7 @@ class Template_Group(object) :
 		self.__include_sss = include_sss
 		#make the list of channels, which will have their processes and templates automatically added
 		self.__channel_list = make_channel_list(fit_parameter_tuple,include_mu,include_el,sum_charges,topology_list,include_JEC,include_sss)
+		self.__outname = outname 
 		self.__aux_obj_list = []
 		#print 'Created new template group:\n'+self.__str__()
 
@@ -47,63 +50,170 @@ class Template_Group(object) :
 #			s+=p.getName()+',' #DEBUG
 #		s+=']' #DEBUG
 #		print s #DEBUG
+		#make lists of observables that we'll need from the original ttree
+		self.__ttree_cut_branches = make_dict_of_ttree_cut_branches()
+		#copy every branch we need from the tree (for cuts and for adding to processes) to a dictionary
+		branches_to_copy = {}
+		for tcb in self.__ttree_cut_branches.values() :
+			branches_to_copy[tcb.getTTreeName()] = copy.deepcopy(tcb)
+		for chan in self.__channel_list :
+			for proc in chan.getProcessList() :
+				bdict = proc.getBranchDict()
+				for b in bdict.values() :
+					if b.getTTreeName()!=None and b.getTTreeName() not in branches_to_copy.keys() :
+						branches_to_copy[b.getTTreeName()] = copy.deepcopy(b)
+		#spawn processes for adding events to approrpriate processes
+		n_procs = 30
+		procs = []
+		#first segment the tree
+		print '		Segmenting trees for %d parallel processes...'%(n_procs)
+		for i in range(n_procs) :
+			p = multiprocessing.Process(target=self.copyTreeSegment, args=(ttree_file_path,i,n_procs,copy.deepcopy(branches_to_copy)))
+			procs.append(p)
+			p.start()
+		for p in procs :
+			p.join()
+		print '		Done.'
+		#now actually add the events from the segmented trees to the total process
+		print '		Adding events from trees to process trees...'
+		procs = []
+		for i in range(n_procs) :
+			p = multiprocessing.Process(target=self.filterCopyTree, args=(i==n_procs-1,i,ttree_file_path,ps_for_file))
+			procs.append(p)
+			p.start()
+		#make sure all processes completed 
+		for p in procs :
+			p.join()
+		#remove the garbage files that held the segmented trees
+		print '		Removing segmented tree files'
+		os.system('rm -rf segment_*.root')
+		print '		Done.'
+		#hadd together the separate process tree files
+		print '		Aggregating process tree files'
+		filetype = ttree_file_path.split('/')[-1].rstrip('skim_all.root')
+		cmd = 'hadd '+filetype+'_'+self.__outname+'_process_trees_all.root '
+		for i in range(n_procs) :
+			cmd+=filetype+'_'+self.__outname+'_process_trees_'+str(i+1)+'.root '
+		os.system(cmd)
+		os.system('rm -rf '+filetype+'_'+self.__outname+'_process_trees_?.root '+filetype+'_'+self.__outname+'_process_trees_??.root')
+		print '		Done'
+
+	def copyTreeSegment(self,ttree_file_path,i,n_procs,bdict) :
 		#open the file
 		filep = TFile(ttree_file_path)
 		#get the tree from the file
 		tree = filep.Get('tree')
 		nEntries = tree.GetEntries()
-		#make lists of observables that we'll need from the original ttree
-		self.__ttree_cut_branches = make_dict_of_ttree_cut_branches()
-		#for every event in the file
-		for entry in range(nEntries) :
-			percentdone = 100.*entry/nEntries
-			if percentdone%1.<100./nEntries and percentdone%1.<((100.*(entry-1)/nEntries)%1.) :
-				print '		%d%% done (%d out of %d)'%(percentdone,entry,nEntries)
-			#set branch addresses for cuts
-			for branch in self.__ttree_cut_branches.values() :
-				tree.SetBranchAddress(branch.getTTreeName(),branch.getTTreeArray())
-			tree.GetEntry(entry)
+		#set branches to copy
+		tree.SetBranchStatus('*',0)
+		for b in bdict.values() :
+			bname = b.getTTreeName()
+			tree.SetBranchStatus(bname,1)
+			tree.SetBranchAddress(bname,b.getTTreeArray())
+		#figure out how many events to copy starting from where
+		thisstart = i*(nEntries/n_procs)
+		thisend = thisstart+nEntries/n_procs
+		if i==n_procs-1 :
+			thisend = nEntries
+		#open a garbage file to hold the new tree
+		garbageFile = TFile('segment_'+str(i+1)+'.root','recreate')
+		#print '		Begin copying tree segment %d of %d (entries %d to %d, %d of %d total entries)'%(i+1,n_procs,thisstart,thisend,thisend-thisstart,nEntries) #DEBUG
+		#thistree = tree.CopyTree('','',thisnentries,thisstart)
+		thistree = tree.CloneTree(0)
+		for ientry in range(thisstart,thisend) :
+			tree.GetEntry(ientry)
+			thistree.Fill()
+		thistree.Write()
+		garbageFile.Close()
+		filep.Close()
+		#print '		Done copying tree segment %d of %d'%(i+1,n_procs) #DEBUG
+
+	def filterCopyTree(self,printbool,iproc,ttree_file_path,ps_for_file) :
+		#get the segmented tree
+		filep = TFile('segment_'+str(iproc+1)+'.root')
+		tree = filep.Get('tree')
+		nentries = tree.GetEntries()
+		#print 'number of entries for tree in %s = %d'%(multiprocessing.current_process().name,nentries) #DEBUG
+		#print 'process: %s, tree = %s, tree_cut_branches = %s, chanlist = %s'%(multiprocessing.current_process().name,tree,tree_cut_branches,chanlist) #DEBUG
+		tree.SetMakeClass(1)
+		#open up the file that the process trees will go in
+		ptreesfilep = TFile(ttree_file_path.split('/')[-1].rstrip('skim_all.root')+'_'+self.__outname+'_process_trees_'+str(iproc+1)+'.root','recreate')
+		#add trees and keep track of them in a dictionary of dictionaries
+		treedicts = {}
+		for chan in self.__channel_list :
+			for proc in chan.getProcessList() :
+				procname = proc.getName()
+				procbranches = copy.deepcopy(proc.getBranchDict())
+				treedicts[procname] = {'branches':procbranches}
+				for key, value in proc.getTreeDict().iteritems() :
+					newtree = TTree(value.GetName(),'recreate')
+					for branch in procbranches.values() :
+						newtree.Branch(branch.getPTreeName(),branch.getPTreeArray(),branch.getPTreeLeafList())
+					treedicts[procname][key] = newtree
+		#get a copy of the branches for ttree cuts
+		tree_cut_branches = copy.deepcopy(self.__ttree_cut_branches)
+		#set branch addresses for cuts
+		for branch in tree_cut_branches.values() :
+			tree.SetBranchAddress(branch.getTTreeName(),branch.getTTreeArray())
+		#just real quick see if we need to check the event type for every on of the events
+		checkeventtype = ttree_file_path.find('powheg_TT')!=-1 or ttree_file_path.find('mcatnlo_TT')!=-1 
+		#do selections and copy relevant events from reconstructor ttrees to process ttrees
+		for entry in range(nentries) :
+			if printbool :
+				percentdone = 100.*entry/nentries
+				if percentdone%1.<100./nentries and percentdone%10.<((100.*(entry-1)/nentries)%10.) :
+					print '		%d%% done'%(percentdone)
+			check = tree.GetEntry(entry)
 			#Check basic selection cuts
-			if self.__ttree_cut_branches['fullselection'].getTTreeValue()!=1 :
+			if tree_cut_branches['fullselection'].getTTreeValue()!=1 :
 				continue
 			#get the event type and lepton flavor once per event
-			etype = self.__ttree_cut_branches['eventType'].getTTreeValue()
-			lepflav = self.__ttree_cut_branches['lepflavor'].getTTreeValue()
-			#for each channel
+			etype = tree_cut_branches['eventType'].getTTreeValue()
+			lepflav = tree_cut_branches['lepflavor'].getTTreeValue()
+			#look through each channel
 			for channel in self.__channel_list :
 				cleptype = channel.getLepType()
-				#check that the event topology and lepton flavors/charges agree
-				if int(channel.getTopology().split('t')[1])!=self.__ttree_cut_branches['eventTopology'].getTTreeValue() :
+				#check that the event topology and lepton flavors/charges agree (these are the same for every process in this channel)
+				if int(channel.getTopology().split('t')[1])!=tree_cut_branches['eventTopology'].getTTreeValue() :
 					continue
-				if cleptype=='mu' and lepflav!=1 or cleptype=='el' and lepflav!=2 :
+				if (cleptype=='mu' and lepflav!=1) or (cleptype=='el' and lepflav!=2) :
 					continue
-				if channel.getCharge()!=0 and self.__ttree_cut_branches['lep_Q'].getTTreeValue()!=channel.getCharge() and self.__ttree_cut_branches['addTwice'].getTTreeValue()!=1 :
+				if channel.getCharge()!=0 and tree_cut_branches['lep_Q'].getTTreeValue()!=channel.getCharge() and tree_cut_branches['addTwice'].getTTreeValue()!=1 :
 					continue
-				#for each process in the channel
+				#now look through each process in the channel
 				for process in channel.getProcessList() :
+					#first off make sure this file contributes to processes of this type
 					if not process in ps_for_file :
 						continue
+					#get the name of this process
+					pname = process.getName()
 					#for ttbar files, cut on the event type
-					if ttree_file_path.find('_TT')!=-1 :
-						pname = process.getName()
+					if checkeventtype :
 						if (pname.find('fqq')!=-1 and etype!=0) or (pname.find('fgg')!=-1 and etype!=1) or (pname.find('fbck')!=-1 and etype!=2 and etype!=3) :
 							continue
+					#if we made it to this point, this event should be copied into the process's tree(s)!!
 					#get the contribution weight
 					contrib_weight = get_contrib_weight(ttree_file_path,process)
-					#get the branch dictionary
-					bdict = process.getBranchDict()
+					#get the branch dictionary for this process
+					bdict = treedicts[pname]['branches']
+					#set the branch addresses and re-get the event
+					for branch in bdict.values() :
+						bttreename = branch.getTTreeName()
+						if bttreename!=None :
+							tree.SetBranchAddress(bttreename,branch.getPTreeArray())
+					tree.GetEntry(entry)
 					#explicitly fill the contribution weight and luminosity branches for this process
 					bdict['contrib_weight'].getPTreeArray()[0] = contrib_weight
 					if 'lumi_BtoF' in bdict.keys() :
 						if process.isMCProcess() :
 							if lepflav==1 :
-								bdict['lumi_BtoF'].getPTreeArray()[0] = self.__LUMINOSITY_BTOF_MU
-								bdict['lumi_BtoF_up'].getPTreeArray()[0] = (1.0+self.__LUMI_MIN_BIAS)*self.__LUMINOSITY_BTOF_MU
-								bdict['lumi_BtoF_down'].getPTreeArray()[0] = (1.0-self.__LUMI_MIN_BIAS)*self.__LUMINOSITY_BTOF_MU
+								bdict['lumi_BtoF'].getPTreeArray()[0] = LUMINOSITY_BTOF_MU
+								bdict['lumi_BtoF_up'].getPTreeArray()[0] = (1.0+LUMI_MIN_BIAS)*LUMINOSITY_BTOF_MU
+								bdict['lumi_BtoF_down'].getPTreeArray()[0] = (1.0-LUMI_MIN_BIAS)*LUMINOSITY_BTOF_MU
 							elif lepflav==2 :
-								bdict['lumi_BtoF'].getPTreeArray()[0] = self.__LUMINOSITY_BTOF_EL
-								bdict['lumi_BtoF_up'].getPTreeArray()[0] = (1.0+self.__LUMI_MIN_BIAS)*self.__LUMINOSITY_BTOF_EL
-								bdict['lumi_BtoF_down'].getPTreeArray()[0] = (1.0-self.__LUMI_MIN_BIAS)*self.__LUMINOSITY_BTOF_EL
+								bdict['lumi_BtoF'].getPTreeArray()[0] = LUMINOSITY_BTOF_EL
+								bdict['lumi_BtoF_up'].getPTreeArray()[0] = (1.0+LUMI_MIN_BIAS)*LUMINOSITY_BTOF_EL
+								bdict['lumi_BtoF_down'].getPTreeArray()[0] = (1.0-LUMI_MIN_BIAS)*LUMINOSITY_BTOF_EL
 						else :
 							bdict['lumi_BtoF'].getPTreeArray()[0] = 1.0
 							bdict['lumi_BtoF_up'].getPTreeArray()[0] = 1.0
@@ -111,34 +221,40 @@ class Template_Group(object) :
 					if 'lumi_GH' in bdict.keys() :
 						if process.isMCProcess() :
 							if lepflav==1 :
-								bdict['lumi_GH'].getPTreeArray()[0] = self.__LUMINOSITY_GH_MU
-								bdict['lumi_GH_up'].getPTreeArray()[0] = (1.0+self.__LUMI_MIN_BIAS)*self.__LUMINOSITY_GH_MU
-								bdict['lumi_GH_down'].getPTreeArray()[0] = (1.0-self.__LUMI_MIN_BIAS)*self.__LUMINOSITY_GH_MU
+								bdict['lumi_GH'].getPTreeArray()[0] = LUMINOSITY_GH_MU
+								bdict['lumi_GH_up'].getPTreeArray()[0] = (1.0+LUMI_MIN_BIAS)*LUMINOSITY_GH_MU
+								bdict['lumi_GH_down'].getPTreeArray()[0] = (1.0-LUMI_MIN_BIAS)*LUMINOSITY_GH_MU
 							elif lepflav==2 :
-								bdict['lumi_GH'].getPTreeArray()[0] = self.__LUMINOSITY_GH_EL
-								bdict['lumi_GH_up'].getPTreeArray()[0] = (1.0+self.__LUMI_MIN_BIAS)*self.__LUMINOSITY_GH_EL
-								bdict['lumi_GH_down'].getPTreeArray()[0] = (1.0-self.__LUMI_MIN_BIAS)*self.__LUMINOSITY_GH_EL
+								bdict['lumi_GH'].getPTreeArray()[0] = LUMINOSITY_GH_EL
+								bdict['lumi_GH_up'].getPTreeArray()[0] = (1.0+LUMI_MIN_BIAS)*LUMINOSITY_GH_EL
+								bdict['lumi_GH_down'].getPTreeArray()[0] = (1.0-LUMI_MIN_BIAS)*LUMINOSITY_GH_EL
 						else :
 							bdict['lumi_GH'].getPTreeArray()[0] = 1.0
 							bdict['lumi_GH_up'].getPTreeArray()[0] = 1.0
 							bdict['lumi_GH_down'].getPTreeArray()[0] = 1.0
-					#set the branch addresses and re-get the event
-					for branch in process.getBranchDict().values() :
-						bttreename = branch.getTTreeName()
-						if bttreename!=None :
-							tree.SetBranchAddress(bttreename,branch.getPTreeArray())
-					tree.GetEntry(entry)
 					#fill the tree for this process
-					process.fillTree(ttree_file_path)
+					fillTree(ttree_file_path,process.getJECModList(),treedicts[pname],process.isMCProcess())
+					#reset the branch addresses
+					for branch in tree_cut_branches.values() :
+						tree.SetBranchAddress(branch.getTTreeName(),branch.getTTreeArray())
+		#write all the trees
+		for p in treedicts.keys() :
+			for key, value in treedicts[p].iteritems() :
+				if key!='branches' :
+					treedicts[p][key].Write()
+		#close the files
+		ptreesfilep.Close()
+		filep.Close()
 
-	def build_templates(self) :
+	def build_templates(self,ptree_filename) :
+		self.__ptree_filename = ptree_filename
 		#Start of with the weightsums
 		self.__build_weightsums__()
 		#then build all of the templates
 		for c in self.__channel_list :
 			for p in c.getProcessList() :
 				if p.isMCProcess() or p.isDataProcess() :
-					p.buildTemplates(c.getCharge())
+					p.buildTemplates(c.getCharge(),ptree_filename)
 
 	def get_list_of_process_trees(self) :
 		treelist = []
@@ -210,7 +326,7 @@ class Template_Group(object) :
 			for p in channel.getProcessList() :
 				if p.isMCProcess() :
 					print '	Getting weightsums for MC process '+p.getName()
-					p.buildWeightsums(channel.getCharge())
+					p.buildWeightsums(channel.getCharge(),self.__ptree_filename)
 		#sum all of the channels/processes together by template type
 		for ttype in all_weightsums :
 			for c in self.__channel_list :
@@ -232,22 +348,22 @@ class Template_Group(object) :
 					if ttype=='fit__up' or ttype=='fit__down' :
 						ttype='nominal'
 					t.setWeightsumDict(copy.deepcopy(all_weightsums[ttype]))
-	#	print '	FINAL WEIGHTSUMS: '
-	#	for c in self.__channel_list :
-	#		for p in c.getProcessList() :
-	#			if not p.isMCProcess() :
-	#				continue
-	#			for t in p.getTemplateList() :
-	#				print '		Template '+t.getName()+': '
-	#				wsd = t.getWeightsumDict()
-	#				for weightsum_name in wsd :
-	#					s = '			'+weightsum_name+': {'
-	#					for ttree_identifier in wsd[weightsum_name] :
-	#						if ttree_identifier=='wname' :
-	#							continue
-	#						s+='%s:%.2f,'%(ttree_identifier,wsd[weightsum_name][ttree_identifier])
-	#					s+='}'
-	#					print s
+		#print '	FINAL WEIGHTSUMS: '
+		#for c in self.__channel_list :
+		#	for p in c.getProcessList() :
+		#		if not p.isMCProcess() :
+		#			continue
+		#		for t in p.getTemplateList() :
+		#			print '		Template '+t.getName()+': '
+		#			wsd = t.getWeightsumDict()
+		#			for weightsum_name in wsd :
+		#				s = '			'+weightsum_name+': {'
+		#				for ttree_identifier in wsd[weightsum_name] :
+		#					if ttree_identifier=='wname' :
+		#						continue
+		#					s+='%s:%.2f,'%(ttree_identifier,wsd[weightsum_name][ttree_identifier])
+		#				s+='}'
+		#				print s
 
 	def __del__(self) :
 		pass
@@ -310,17 +426,23 @@ def get_contrib_weight(filepath,process) :
 			return 0.
 	#otherwise if it's a MC process
 	elif process.isMCProcess() :
+		#make sure it's not a data file
+		if filepath.find('SingleMu')!=-1 or filepath.find('SingleEl')!=-1 :
+			return 0.
 		#check the ttbar processes
-		if pname.find('fqq')!=-1 or pname.find('fgg')!=-1 or pname.find('fbck')!=-1 :
-			if filepath.find('_TT')!=-1 :
+		if pname.find('fqq')!=-1 or pname.find('fgg')!=-1 :
+			if filepath.find('powheg_TT')!=-1 or filepath.find('mcatnlo_TT')!=-1 :
 				return 1.0
 			return 0.
 		#check the background processes
 		elif pname.find('fbck')!=-1 :
-			bck_stems = ['ST_s-c','ST_t-c_top','ST_tW-c_top','ST_t-c_antitop','ST_tW-c_antitop']
-			for bckstem in bck_stems :
-				if filepath.find(bckstem)!=-1 :
-					return 1.0
+			if filepath.find('powheg_TT')!=-1 or filepath.find('mcatnlo_TT')!=-1 :
+				return 1.0
+			else :
+				bck_stems = ['ST_s-c','ST_t-c_top','ST_tW-c_top','ST_t-c_antitop','ST_tW-c_antitop']
+				for bckstem in bck_stems :
+					if filepath.find(bckstem)!=-1 :
+						return 1.0
 			return 0.
 		else :
 			print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
@@ -333,3 +455,18 @@ def get_contrib_weight(filepath,process) :
 		print '!!!!!!   WARNING, PROCESS TYPE NOT RECOGNIZED FROM NAME '+pname+'   !!!!!!'
 		print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
 		return 0.
+
+def fillTree(ttree_file_path,jecmodlist,ptreedict,isMCProcess) :
+	treestring = 'sig'
+	#If it's a MC distribution, add the JEC part of the name to the tree identifier if necessary
+	if isMCProcess and (ttree_file_path.find('_up')!=-1 or ttree_file_path.find('_down')!=-1) :
+		JEC_ID = ''
+		for jecmod in jecmodlist :
+			if ttree_file_path.find(jecmod.getName()+'_up') != -1 :
+				JEC_ID = jecmod.getName()+'__up'
+				break
+			elif ttree_file_path.find(jecmod.getName()+'_down') != -1 :
+				JEC_ID = jecmod.getName()+'__down'
+				break
+		treestring+='_'+JEC_ID
+	ptreedict[treestring].Fill()
