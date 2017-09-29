@@ -5,7 +5,7 @@ from process import MC_Process, Data_Process
 class Channel(object) :
 
 	#process names
-	__mc_process_names = ['fgg','fqq','fbck']
+	__mc_process_names = ['fgg','fqq','fbck','fwjets']
 	__data_process_names = ['DATA']
 
 	def __init__(self,name,fit_parameter_tuple,include_JEC,include_sss) :
@@ -16,6 +16,8 @@ class Channel(object) :
 		#Set the channel name and charge from the name
 		self.__name = name
 		self.__charge = autoset_charge(name)
+		#Set the channel's region based on the name
+		self.__region = autoset_region(name)
 		#Make the list of processes that will be in this channel, with all of the wiggles necessary
 		self.__process_list = self.__make_process_list__(fit_parameter_tuple,include_JEC,include_sss)
 
@@ -28,6 +30,8 @@ class Channel(object) :
 		return self.__lep_type
 	def getCharge(self) :
 		return self.__charge
+	def getRegion(self) :
+		return self.__region
 	def getProcessList(self) :
 		return self.__process_list
 
@@ -68,9 +72,9 @@ def autoset_topology(name) :
 #Automatically returns the lepton type name based on the channel name
 def autoset_lepton_type_name(name) :
 	leptontypename = ''
-	if name[3:].startswith('mu') :
+	if name.split('_')[1].startswith('mu') :
 		leptontypename = 'mu'
-	elif name[3:].startswith('el') :
+	elif name.split('_')[1].startswith('el') :
 		leptontypename = 'el'
 	else :
 		print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
@@ -81,8 +85,16 @@ def autoset_lepton_type_name(name) :
 #returns the integer lepton charge based on the channel name (0 if charge summed, +/-1 otherwise)
 def autoset_charge(name) :
 	charge = 0
-	if name.endswith('plus') :
+	if name.split('_')[1].endswith('plus') :
 		charge = 1
-	elif name.endswith('minus') :
+	elif name.split('_')[1].endswith('minus') :
 		charge = -1
 	return charge
+
+#returns the region name based on the channel name
+def autoset_region(name) :
+	ns = name.split('_')
+	if len(ns)==3 :
+		return ns[2]
+	elif len(ns)==4 :
+		return ns[2]+'_'+ns[3]

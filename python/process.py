@@ -6,7 +6,7 @@ from branch import Branch
 from template import Template
 
 #Functions
-PREFAC_1 = '( @NTOT@ - @NBCK@ * #Rbck# ) * ( 1. / @NTTBAR@ )'
+PREFAC_1 = '( @NTOT@ - @NBCK@ * #Rbck# - @NWJETS@ * #Rwjets# ) * ( 1. / @NTTBAR@ )'
 PREFAC_2 = '( @NTTBAR@ - @NQQBAR@ * #Rqqbar# ) * ( 1. / ( @NTTBAR@ - @NQQBAR@ ) )'
 FGG  = '( 1. + #mu# * ( 1. - #mu# ) * ( @NG1@ / ( @NTTBAR@ - @NQQBAR@ ) )'
 FGG += ' + ( #mu# * #mu# + #d# * #d# ) * ( ( 1. + #mu# ) * ( @NG2@ / ( @NTTBAR@ - @NQQBAR@ ) )'
@@ -19,6 +19,7 @@ fgg_func += ' + ( #mu# * #mu# + #d# * #d# ) * $wg4$ ) )'
 fqq_func  = PREFAC_1+' * ( 1. / '+FQQ+' ) * #Rqqbar# * ( 1. + #Afb# * $wqa0$ + ( 2. * #mu# + #mu# * #mu# - #d# * #d# ) * ( $wqs1$ + #Afb# * $wqa1$ )'
 fqq_func += ' + ( #mu# * #mu# + #d# * #d# ) * ( $wqs2$ + #Afb# * $wqa2$ ) )'
 fbck_func = '#Rbck#'
+fwjets_func = '#Rwjets#'
 
 #Process class
 class Process(object) :
@@ -350,21 +351,6 @@ class MC_Process(Process) :
 				if not ssmodname in self.getSSModifierNameList() :
 					self.addSSModifier(self,copy.deepcopy(ssmod))
 
-	def __del__(self) :
-		pass
-
-	def __str__(self) :
-		s = 'NTMJ_Process: (Process: %s, MC_process_list (names): ['%(self.__str__())
-		for i in range(len(self.__mc_process_list)) :
-			mcp = self.__mc_process_list[i]
-			s+=mcp.getName()
-			if i!=len(self.__mc_process_list)-1 :
-				s+=', '
-			else :
-				s+=']'
-		s+=')'
-		return s
-
 #Data_Process subclass
 class Data_Process(Process) :
 
@@ -409,6 +395,8 @@ def autoset_base_function(name) :
 		base_function = fqq_func
 	elif name == 'fbck' :
 		base_function = fbck_func
+	elif name == 'fwjets' :
+		base_function = fwjets_func
 	elif name == 'DATA' :
 		base_function = ''
 	else :

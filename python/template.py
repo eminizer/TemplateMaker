@@ -29,7 +29,8 @@ class Template(object) :
 								 'NG2':{'wname':'wg2','sig':0.},
 								 'NG3':{'wname':'wg3','sig':0.},
 								 'NG4':{'wname':'wg4','sig':0.},
-								 'NBCK':{'wname':None,'sig':0.}}
+								 'NBCK':{'wname':None,'sig':0.},
+								 'NWJETS':{'wname':None,'sig':0.}}
 		#Templates will eventually need a conversion function
 		self.__conversion_function = None
 		#Templates have 3D and 1D projection histograms
@@ -53,6 +54,9 @@ class Template(object) :
 					weightsum_names.append(name)
 			elif self.__name.find('fbck')!=-1 :
 				if name.find('NBCK')!=-1 :
+					weightsum_names.append(name)
+			elif self.__name.find('fwjets')!=-1 :
+				if name.find('NWJETS')!=-1 :
 					weightsum_names.append(name)
 		#Make a list of ttree identifiers
 		ttree_identifiers = []
@@ -302,12 +306,15 @@ class Template(object) :
 		ngg = self.__weightsum_dict['NGG'][ttree_identifier]
 		nqq = self.__weightsum_dict['NQQBAR'][ttree_identifier]
 		nbck = self.__weightsum_dict['NBCK'][ttree_identifier]
+		nwjets = self.__weightsum_dict['NWJETS'][ttree_identifier]
 		others_list = ['NG1','NG2','NG3','NG4','NQ1','NQ2']
 		for s in fssen :
 			if s == 'NTOT' :
 				newfunction1+='('+str(ngg+nqq+nbck)+')'
 			elif s == 'NBCK' :
 				newfunction1+='('+str(nbck)+')'
+			elif s == 'NWJETS' :
+				newfunction1+='('+str(nwjets)+')'
 			elif s == 'NTTBAR' :
 				newfunction1+='('+str(ngg+nqq)+')'
 			elif s == 'NQQBAR' :
