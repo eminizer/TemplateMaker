@@ -165,7 +165,13 @@ class Template_Group(object) :
 					print '		%d%% done'%(percentdone)
 			check = tree.GetEntry(entry)
 			#Check basic selection cuts
-			if tree_cut_branches['fullselection'].getTTreeValue()!=1 and tree_cut_branches['wjets_cr_selection'].getTTreeValue()!=1 :
+			basiccuts = {}
+			basiccuts['fullselection'] = tree_cut_branches['fullselection'].getTTreeValue()==1
+			basiccuts['wjets_cr_selection'] = tree_cut_branches['wjets_cr_selection'].getTTreeValue()==1
+			basiccuts['qcd_A_sb_selection'] = tree_cut_branches['qcd_A_sb_selection'].getTTreeValue()==1
+			basiccuts['qcd_B_sb_selection'] = tree_cut_branches['qcd_B_sb_selection'].getTTreeValue()==1
+			basiccuts['qcd_C_sb_selection'] = tree_cut_branches['qcd_C_sb_selection'].getTTreeValue()==1
+			if basiccuts.values().count(True)==0 :
 				continue
 			#get the event type and lepton flavor once per event
 			etype = tree_cut_branches['eventType'].getTTreeValue()
@@ -174,7 +180,7 @@ class Template_Group(object) :
 			for channel in self.__channel_list :
 				#first check that this event belongs in this channel's region of phase space
 				cregion = channel.getRegion()
-				if (cregion=='SR' and tree_cut_branches['fullselection'].getTTreeValue()!=1) or (cregion=='WJets_CR' and tree_cut_branches['wjets_cr_selection'].getTTreeValue()!=1) :
+				if (cregion=='SR' and not basiccuts['fullselection']) or (cregion=='WJets_CR' and not basiccuts['wjets_cr_selection']) :
 					continue
 				#check that the event topology and lepton flavors/charges agree (these are the same for every process in this channel)
 				cleptype = channel.getLepType()
@@ -237,7 +243,7 @@ class Template_Group(object) :
 							bdict['lumi_GH_up'].getPTreeArray()[0] = 1.0
 							bdict['lumi_GH_down'].getPTreeArray()[0] = 1.0
 					#fill the tree for this process
-					fillTree(ttree_file_path,process.getJECModList(),treedicts[pname],process.isMCProcess())
+					fillTree(ttree_file_path,process.getJECModList(),treedicts[pname],process.isMCProcess(),basiccuts)
 					#reset the branch addresses
 					for branch in tree_cut_branches.values() :
 						tree.SetBranchAddress(branch.getTTreeName(),branch.getTTreeArray())
@@ -250,15 +256,26 @@ class Template_Group(object) :
 		ptreesfilep.Close()
 		filep.Close()
 
-	def build_templates(self,ptree_filename) :
+	def build_QCD_templates(self,ptree_filename) :
 		self.__ptree_filename = ptree_filename
-		#Start of with the weightsums
+		#Start of with the weightsums to put in the fit functions everywhere
 		self.__build_weightsums__()
+		#Next build each template's conversion factor
+		self.__calculate_conversion_factors__()
 		#then build all of the templates
 		for c in self.__channel_list :
 			for p in c.getProcessList() :
-				if p.isMCProcess() or p.isDataProcess() :
+				if p.isQCDProcess() :
 					p.buildTemplates(c.getCharge(),ptree_filename)
+		#finally set the NQCD numbers now that the templates are actually built
+		self.__set_NQCD_values__()
+
+	def build_templates(self) :
+		#build all of the templates
+		for c in self.__channel_list :
+			for p in c.getProcessList() :
+				if p.isMCProcess() or p.isDataProcess() :
+					p.buildTemplates(c.getCharge(),self.ptree_filename)
 
 	def get_list_of_process_trees(self) :
 		treelist = []
@@ -350,8 +367,80 @@ class Template_Group(object) :
 						s+='}'
 						print s
 
-	def __del__(self) :
-		pass
+	#calculate the conversion factors to apply to each QCD template's shape in the sideband
+	def __calculate_conversion_factors__(self) :
+		print '	Calculating conversion factors'
+		#make a dictionary of event numbers
+		event_numbers = {}
+		for c in self.__channel_list :
+			event_numbers[c.getName()] = {}
+			charge = c.getCharge()
+			for p in c.getProcessList() :
+				if p.isNTMJProcess() :
+					pname = p.getName().split('__')[1]
+					event_numbers[c.getName()][pname] = p.getEventNumbers(charge)
+		#Make the conversion factors dictionary per channel/process/template type
+		conv_fac_dict = {}
+		for c in self.__channel_list :
+			channame = c.getName()
+			if channame not in conv_fac_dict.keys() :
+				conv_fac_dict[channame] = {}
+			for p in c.getProcessList() :
+				if not p.isNTMJProcess() :
+					continue
+				pname = p.getName()
+				ptype = pname.split('__')[1]
+				if not ptype in conv_fac_dict[channame].keys() :
+					conv_fac_dict[channame][ptype] = {}
+				for t in p.getTemplateList() :
+					ttype = t.getType()
+					if not ttype in conv_fac_dict[channame][ptype].keys() :
+						print '		Finding conversion factor for template '+t.getName()
+						#make the conversion function
+						n_qcd_a = event_numbers[channame][ptype][ttype]['qcd_a']
+						n_qcd_b = event_numbers[channame][ptype][ttype]['qcd_b']
+						print '			n_qcd_a=%.2f, n_qcd_b=%.2f'%(n_qcd_a,n_qcd_b)
+						conv_fac_dict[ltype][ptype][ttype] = n_qcd_a/n_qcd_b
+				for t in p.getTemplateList() :
+					ttype = t.getType()
+					t.setConversionFactor(conv_fac_dict[ltype][ptype][ttype])
+
+	def __set_NQCD_values__(self) :
+		print '	Getting and resetting total NQCD values'
+		#get the individual values
+		nqcd_values = {}
+		for c in self.__channel_list :
+			nqcd_values[c.getName()] = {}
+			for p in c.getProcessList() :
+				if not p.isQCDProcess() :
+					continue
+				ptype = p.getName().split('__')[1]
+				nqcd_values[c.getName()][ptype] = {}
+				for t in p.getTemplateList() :
+					ttype = t.getType()
+					nqcd_values[c.getName()][ptype][ttype] = t.fixNQCDValues()
+		#sum them over channels per region and NTMJ process type
+		nqcd_values2 = {}
+		for c in self.__channel_list :
+			cregion = c.getRegion()
+			if not cregion in nqcd_values2.keys() :
+				nqcd_values2[cregion] = {}
+			for p in c.getProcessList() :
+				if not p.isQCDProcess() :
+					continue
+				ptype = p.getName().split('__')[1]
+				if not ptype in nqcd_values2[cregion].keys() :
+					nqcd_values2[cregion][ptype]={}
+				for t in p.getTemplateList() :
+					ttype = t.getType()
+					if not ttype in nqcd_values2[cregion][ptype].keys() :
+						nqcd_values2[cregion][ptype][ttype]=0.
+					nqcd_values2[cregion][ptype][ttype]+=nqcd_values[c.getName()][ptype][ttype]
+		#set the values in the templates
+		for c in self.__channel_list :
+			for p in c.getProcessList() :
+				for t in p.getTemplateList() :
+					t.setNNTMJValue(nqcd_values2[c.getRegion()][p.getName().split('__')[1]][t.getType()])
 
 	def __str__(self) :
 		s = 'Template_Group object:\n'
@@ -404,8 +493,8 @@ def make_dict_of_ttree_cut_branches() :
 #return the weight that should be applied to this event when adding to the given process
 def get_contrib_weight(filepath,process) :
 	pname = process.getName()
-	#if it's a data process return 1 only if it's a data file
-	if process.isDataProcess() :
+	#if it's a data or QCD process return 1 only if it's a data file
+	if process.isDataProcess() or process.isQCDProcess() :
 		if filepath.find('SingleMu')!=-1 and pname[3:].startswith('mu')!=-1 :
 			return 1.0
 		elif filepath.find('SingleEl')!=-1 and pname[3:].startswith('el')!=-1 :
@@ -420,6 +509,11 @@ def get_contrib_weight(filepath,process) :
 		#check the ttbar processes
 		if pname.find('fqq')!=-1 or pname.find('fgg')!=-1 :
 			if filepath.find('powheg_TT')!=-1 or filepath.find('mcatnlo_TT')!=-1 :
+				return 1.0
+			return 0.
+		#check the WJets processes
+		if pname.find('fwjets')!=-1 :
+			if filepath.find('WJets_')!=-1 :
 				return 1.0
 			return 0.
 		#check the background processes
@@ -444,8 +538,14 @@ def get_contrib_weight(filepath,process) :
 		print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
 		return 0.
 
-def fillTree(ttree_file_path,jecmodlist,ptreedict,isMCProcess) :
+def fillTree(ttree_file_path,jecmodlist,ptreedict,isMCProcess,regioncutdict) :
 	treestring = 'sig'
+	if regioncutdict['qcd_A_sb_selection'] :
+		treestring=='qcda'
+	elif regioncutdict['qcd_B_sb_selection'] :
+		treestring=='qcdb'
+	elif regioncutdict['qcd_C_sb_selection'] :
+		treestring=='qcdc'
 	#If it's a MC distribution, add the JEC part of the name to the tree identifier if necessary
 	if isMCProcess and (ttree_file_path.find('_up')!=-1 or ttree_file_path.find('_down')!=-1) :
 		JEC_ID = ''

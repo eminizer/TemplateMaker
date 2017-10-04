@@ -21,18 +21,19 @@ class Template(object) :
 		#Templates have modifiers associated with them
 		self.__modifier = modifier
 		#Dictionary of weightsums for function replacements
-		self.__weightsum_dict = {'NQQBAR':{'wname':None,'sig':0.},
-								 'NQ1':{'wname':'wqs1','sig':0.},
-								 'NQ2':{'wname':'wqs2','sig':0.},
-								 'NGG':{'wname':None,'sig':0.},
-								 'NG1':{'wname':'wg1','sig':0.},
-								 'NG2':{'wname':'wg2','sig':0.},
-								 'NG3':{'wname':'wg3','sig':0.},
-								 'NG4':{'wname':'wg4','sig':0.},
-								 'NBCK':{'wname':None,'sig':0.},
-								 'NWJETS':{'wname':None,'sig':0.}}
-		#Templates will eventually need a conversion function
-		self.__conversion_function = None
+		self.__weightsum_dict = {'NQQBAR':{'wname':None,'sig':0.,'qcd_a':0.,'qcd_b':0.,'qcd_c':0.},
+								 'NQ1':{'wname':'wqs1','sig':0.,'qcd_a':0.,'qcd_b':0.,'qcd_c':0.},
+								 'NQ2':{'wname':'wqs2','sig':0.,'qcd_a':0.,'qcd_b':0.,'qcd_c':0.},
+								 'NGG':{'wname':None,'sig':0.,'qcd_a':0.,'qcd_b':0.,'qcd_c':0.},
+								 'NG1':{'wname':'wg1','sig':0.,'qcd_a':0.,'qcd_b':0.,'qcd_c':0.},
+								 'NG2':{'wname':'wg2','sig':0.,'qcd_a':0.,'qcd_b':0.,'qcd_c':0.},
+								 'NG3':{'wname':'wg3','sig':0.,'qcd_a':0.,'qcd_b':0.,'qcd_c':0.},
+								 'NG4':{'wname':'wg4','sig':0.,'qcd_a':0.,'qcd_b':0.,'qcd_c':0.},
+								 'NBCK':{'wname':None,'sig':0.,'qcd_a':0.,'qcd_b':0.,'qcd_c':0.},
+								 'NWJETS':{'wname':None,'sig':0.,'qcd_a':0.,'qcd_b':0.,'qcd_c':0.},
+								 'NQCD':{'wname':None,'sig':0.}}
+		#QCD templates will eventually need a conversion factor
+		self.__conversion_factor = None
 		#Templates have 3D and 1D projection histograms
 		self.__histo_3D = TH3D(name,formatted_name+'; c*; |x_{F}|; M (GeV)',len(self.__XBINS)-1,self.__XBINS,len(self.__YBINS)-1,self.__YBINS,len(self.__ZBINS)-1,self.__ZBINS)
 		self.__histo_x  = TH1D(name+'_x',formatted_name+' X Projection; c*',len(self.__XBINS)-1,self.__XBINS)
@@ -57,6 +58,9 @@ class Template(object) :
 					weightsum_names.append(name)
 			elif self.__name.find('fwjets')!=-1 :
 				if name.find('NWJETS')!=-1 :
+					weightsum_names.append(name)
+			elif self.__name.find('fqcd')!=-1 :
+				if name.find('NQCD')!=-1 :
 					weightsum_names.append(name)
 		#Make a list of ttree identifiers
 		ttree_identifiers = []
@@ -154,6 +158,9 @@ class Template(object) :
 				fweight, fweight_opp = self.__get_function_weight__(branch_dict,functionstring)
 				eweight*=fweight; eweight_opp*=fweight_opp
 #				s+=', after func. weight = '+str(eweight) #DEBUG
+			#if it has a conversion factor, apply it.
+			if self.__conversion_factor!=None :
+				eweight*=self.__conversion_factor; eweight_opp*=self.__conversion_factor
 			#multiply by the last +/-1 factor from the function call
 			eweight*=extra_weight; eweight_opp*=extra_weight
 #			s+=', after extra weight = '+str(eweight) #DEBUG
@@ -170,6 +177,13 @@ class Template(object) :
 #			s+=' (weightsum = '+str(added)+', n = '+str(n)+')' #DEBUG
 #			print s #DEBUG
 #		print 'TEMPLATE '+self.__name+' INTEGRAL = '+str(self.__histo_3D.Integral())+' (total weight added = '+str(added)+')' #DEBUG
+
+	def fixNQCDValues(self) :
+		value = self.__histo_3D.Integral()
+		print '		Signal region NQCD for template '+self.__name+' = '+str(value)
+		return value
+	def setNQCDValue(self,value) :
+		self.__weightsum_dict['NQCD']['sig']=value
 
 	#Fill the histograms given x, y, and z values
 	def Fill(self,x,y,z,w) :
@@ -236,8 +250,8 @@ class Template(object) :
 		self.__weightsum_dict = newdict
 	def getType(self) :
 		return self.__type
-	def setConversionFunction(self,func) :
-		self.__conversion_function = func
+	def setConversionFactor(self,fac) :
+		self.__conversion_factor = fac
 	def getHisto3D(self) :
 		return self.__histo_3D
 	def getHistoX(self) :

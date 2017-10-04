@@ -6,7 +6,7 @@ from branch import Branch
 from template import Template
 
 #Functions
-PREFAC_1 = '( @NTOT@ - @NBCK@ * #Rbck# - @NWJETS@ * #Rwjets# ) * ( 1. / @NTTBAR@ )'
+PREFAC_1 = '( @NTOT@ - @NBCK@ * #Rbck# - @NWJETS@ * #Rwjets# - @NQCD@ * #Rqcd# ) * ( 1. / @NTTBAR@ )'
 PREFAC_2 = '( @NTTBAR@ - @NQQBAR@ * #Rqqbar# ) * ( 1. / ( @NTTBAR@ - @NQQBAR@ ) )'
 FGG  = '( 1. + #mu# * ( 1. - #mu# ) * ( @NG1@ / ( @NTTBAR@ - @NQQBAR@ ) )'
 FGG += ' + ( #mu# * #mu# + #d# * #d# ) * ( ( 1. + #mu# ) * ( @NG2@ / ( @NTTBAR@ - @NQQBAR@ ) )'
@@ -20,6 +20,7 @@ fqq_func  = PREFAC_1+' * ( 1. / '+FQQ+' ) * #Rqqbar# * ( 1. + #Afb# * $wqa0$ + (
 fqq_func += ' + ( #mu# * #mu# + #d# * #d# ) * ( $wqs2$ + #Afb# * $wqa2$ ) )'
 fbck_func = '#Rbck#'
 fwjets_func = '#Rwjets#'
+fqcd_func = '#Rqcd#'
 
 #Process class
 class Process(object) :
@@ -38,7 +39,10 @@ class Process(object) :
 		#branch dict
 		self.__branch_dict = self.__initialize_branch_dict__()
 		#tree dict
-		self.__tree_dict = {'sig':TTree(name+'_sig_ptree',name+'_sig_ptree')}
+		self.__tree_dict = {'sig':TTree(name+'_sig_ptree',name+'_sig_ptree'),
+							'qcda':TTree(name+'_qcda_ptree',name+'_qcda_ptree'),
+							'qcdb':TTree(name+'_qcdb_ptree',name+'_qcdb_ptree'),
+							'qcdc':TTree(name+'_qcdc_ptree',name+'_qcdc_ptree')}
 
 	#Getters/Setters/Adders
 	def getName(self) :
@@ -85,6 +89,8 @@ class Process(object) :
 		return isinstance(self,MC_Process)	
 	def isDataProcess(self) :
 		return isinstance(self,Data_Process)
+	def isQCDProcess(self) :
+		return isinstance(self,QCD_Process)
 	def addFitParameter(self,par) :
 		self.__fit_parameter_list.append(par)
 	def addJECModifier(self,jecmod) :
@@ -321,6 +327,97 @@ class MC_Process(Process) :
 		s = 'MC_Process: (Process: %s)'%(self.__str__())
 		return s
 
+#QCD_Process subclass
+class QCD_Process(Process) :
+
+	def __init__(self,name,fit_parameter_tuple,mc_plist,include_JEC,include_sss) :
+		#Start up the Process
+		Process.__init__(self,name,fit_parameter_tuple)
+		#Set the list of MC_Processes to subtract from the data events in making this template eventually
+		self.__mc_process_list = copy.deepcopy(mc_plist)
+		#Add modifiers and templates required by the MC_Processes
+		self.__add_mc_fit_parameters__()
+		self.__add_fit_parameter_templates__()
+		self.__add_pdf_modifiers__()
+		if include_PDF :
+			self.__add_PDF_templates__()
+		self.__add_jec_modifiers__()
+		if include_JEC :
+			self.__add_JEC_templates__()
+		self.__add_ss_modifiers__()
+		if include_sss :
+			self.__add_ss_templates__()
+		#Initialize the tree
+		self.__initialize_trees__()
+
+	#get the MC-subtracted numbers of data events in the sideband regions for each necessary template type
+	def getEventNumbers(self,charge) :
+		print '		Getting event numbers for process '+self.getName()
+		eventnumberssubdict = {}
+		#for each template holding only data events
+		for t in self.getTemplateList() :
+			print '			Adding numbers from template '+t.getName()
+			#get the event numbers
+			eventnumberssubdict[t.getType()] = {'qcd_a':0.,'qcd_b':0.}
+			#from the data events in the distribution
+			t.getEventNumbers(charge,None,self.getTreeDict(),self.getBranchDict(),None,None,
+							  eventnumberssubdict[t.getType()],self.getBaseFunction(),self.getFitParameterList(),1.0)
+		#subtract off the MC events in each MC process
+		for mcp in self.__mc_process_list :
+			for t in mcp.getTemplateList() :
+				print '			Subtracting numbers from template '+t.getName()
+				#make the JEC append
+				JEC_append = ''
+				mod = t.getModifier()
+				if mod!=None and mod.isJECModifier() :
+					JEC_append = '_'+t.getType()
+				t.getEventNumbers(charge,JEC_append,mcp.getTreeDict(),mcp.getBranchDict(),mcp.getConstantReweightsPTreesList(),
+								  mcp.getSSModifierNameList(),eventnumberssubdict[t.getType()],'('+self.getBaseFunction()+')*('+mcp.getBaseFunction()+')',
+								  self.getFitParameterList()+mcp.getFitParameterList(),-1.0)
+		for t in self.getTemplateList() :
+			s= '			Event numbers for template '+t.getName()+' = {'
+			for ttid in eventnumberssubdict[t.getType()] :
+				s+="'%s':%.2f,"%(ttid,eventnumberssubdict[t.getType()][ttid])
+			s+='}'
+			print s
+		return eventnumberssubdict
+
+	#build the templates from the data and MC events
+	def buildTemplates(self,channelcharge,ptfn) :
+		print '	Building templates for QCD process %s...'%(self.getName())
+		procs = []
+		pipe_ends = []
+		#for each template
+		tlist = self.getTemplateList()
+		for i in range(len(tlist)) :
+			t = tlist[i]
+			p_hl, c_hl = multiprocessing.Pipe()
+			p = multiprocessing.Process(target=self.__buildQCDTemplatesParallel__, args=(c_hl,t,channelcharge,ptfn,i==len(tlist)-1))
+			p.start()
+			procs.append(p)
+			pipe_ends.append((p_hl,t))
+		for item in pipe_ends :
+			item[1].setHistos(item[0].recv())
+		for p in procs :
+			p.join()
+	def __buildQCDTemplatesParallel__(self,child_histolist,t,channelcharge,ptfn,pb) :
+		print '			Building template '+t.getName()
+		#add the data events
+		t.addTreeToTemplates(channelcharge,'qcd_c',self.getTreeDict()['qcd_c'],self.getBranchDict(),None,
+							 None,self.getBaseFunction(),self.getFitParameterList(),1.0,ptfn,pb)
+		#make the JEC append
+		JEC_append = ''
+		mod = t.getModifier()
+		if mod!=None and mod.isJECModifier() :
+			JEC_append = '_'+t.getType()
+		#subtract all of the MC events
+		for mcp in self.__mc_process_list :
+			t.addTreeToTemplates(channelcharge,'qcd_c',mcp.getTreeDict()['qcd_c'+JEC_append],mcp.getBranchDict(),mcp.getConstantReweightsPTreesList(),
+								 mcp.getSSModifierNameList(),'('+self.getBaseFunction()+')*('+mcp.getBaseFunction()+')',
+								 self.getFitParameterList()+mcp.getFitParameterList(),-1.0,ptfn,pb)
+		child_histolist.send(t.getHistos())
+		child_histolist.close()
+
 	#Getters/Setters/Adders
 	def getMCProcessList(self) :
 		return self.__mc_process_list
@@ -332,12 +429,6 @@ class MC_Process(Process) :
 				parname = par.getName()
 				if not parname in self.getFitParameterNameList() :
 					self.addFitParameter(self,copy.deepcopy(par))
-	def __add_pdf_modifiers__(self) :
-		for mc_p in self.__mc_process_list :
-			for pdfmod in mc_p.getPDFModifierList() :
-				pdfmodname = pdfmod.getName()
-				if not pdfmodname in self.getPDFModifierNameList() :
-					self.addPDFModifier(self,copy.deepcopy(pdfmod))
 	def __add_jec_modifiers__(self) :
 		for mc_p in self.__mc_process_list :
 			for jecmod in mc_p.getJECModifierList() :
@@ -397,6 +488,8 @@ def autoset_base_function(name) :
 		base_function = fbck_func
 	elif name == 'fwjets' :
 		base_function = fwjets_func
+	elif name == 'fqcd' :
+		base_function = fqcd_func
 	elif name == 'DATA' :
 		base_function = ''
 	else :

@@ -88,8 +88,10 @@ if (not os.path.isfile(options.out_name+'_process_trees.root')) or options.force
 	os.system('rm -rf *_process_trees_all.root')
 	print 'Done'
 #Build the templates
+print 'Building data-driven QCD templates'
+templates.build_QCD_templates(options.out_name+'_process_trees.root ')
 print 'Building DATA and MC-based templates'
-templates.build_templates(options.out_name+'_process_trees.root ')
+templates.build_templates()
 print 'Done'
 #Save all the templates for this group
 print 'Writing templates to file'
