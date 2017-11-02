@@ -1,99 +1,125 @@
 from ROOT import *
+import CMS_lumi, tdrstyle
+
+#TDR plot style stuff
+gROOT.SetBatch()
+tdrstyle.setTDRStyle()
+iPeriod = 4 #13TeV iPeriod = 1*(0/1 7 TeV) + 2*(0/1 8 TeV)  + 4*(0/1 13 TeV)
+CMS_lumi.writeExtraText = 1
+CMS_lumi.extraText = "Preliminary"
 
 #dimension
 dim = 'x'
 
 #open input file
-infilep = TFile('../templates_aux.root')
+infilep = TFile('templates_aux.root')
 
-#channel names to sum over
-channels = ['muplus','muminus','elplus','elminus']
+#lepton types names to sum over
+leptypes = ['muplus','muminus','elplus','elminus']
 
 #lists of systematics names and colors
-systematics = [('pileup_weight',kMagenta),('JES',kRed+2),('JER',kRed-7),('lep_ID_weight',kAzure),('luminosity',kOrange-3),('ren_scale_weight',kGreen+2),('fact_scale_weight',kGreen-7),('comb_scale_weight',kSpring-7),('pdfas_weight',kSpring+3)]
-systematics_names = ['Pileup Weight','Jet Energy Scale','Jet Energy Resolution','Lepton ID weight','Luminosity','Renormalization scale','Factorization scale','Combined #mu_{R}/#mu_{F} scale','PDF/#alpha_{s} weight']
-#systematics = [('fit',kRed)]
-#systematics_names = ['Conv. func. fit']
-#list of histograms
-hists = []
-#one list for each of the qq, gg, bck, and NTMJ
-for i in range(4) :
-	hists.append([])
-#get the nominal templates
-hists[0].append(infilep.Get(channels[0]+'__fqq_'+dim))
-hists[1].append(infilep.Get(channels[0]+'__fgg_'+dim))
-hists[2].append(infilep.Get(channels[0]+'__fbck_'+dim))
-hists[3].append(infilep.Get(channels[0]+'__fntmj_'+dim))
-#add from all the channels
-for i in range(1,len(channels)) :
-	hists[0][0].Add(infilep.Get(channels[i]+'__fqq_'+dim).Clone())
-	hists[1][0].Add(infilep.Get(channels[i]+'__fgg_'+dim).Clone())
-	hists[2][0].Add(infilep.Get(channels[i]+'__fbck_'+dim).Clone())
-	hists[3][0].Add(infilep.Get(channels[i]+'__fntmj_'+dim).Clone())
-#Get the systematics up/down templates
-for i in range(len(systematics)) :
-	hists[0].append(infilep.Get(channels[0]+'__fqq__'+systematics[i][0]+'__up_'+dim))
-	hists[0].append(infilep.Get(channels[0]+'__fqq__'+systematics[i][0]+'__down_'+dim))
-	hists[1].append(infilep.Get(channels[0]+'__fgg__'+systematics[i][0]+'__up_'+dim))
-	hists[1].append(infilep.Get(channels[0]+'__fgg__'+systematics[i][0]+'__down_'+dim))
-	hists[2].append(infilep.Get(channels[0]+'__fbck__'+systematics[i][0]+'__up_'+dim))
-	hists[2].append(infilep.Get(channels[0]+'__fbck__'+systematics[i][0]+'__down_'+dim))
-	hists[3].append(infilep.Get(channels[0]+'__fntmj__'+systematics[i][0]+'__up_'+dim))
-	hists[3].append(infilep.Get(channels[0]+'__fntmj__'+systematics[i][0]+'__down_'+dim))
-	#Add from the rest of the channels
-	for j in range(1,len(channels)) :
-		hists[0][2*i+1].Add(infilep.Get(channels[j]+'__fqq__'+systematics[i][0]+'__up_'+dim).Clone())
-		hists[0][2*i+2].Add(infilep.Get(channels[j]+'__fqq__'+systematics[i][0]+'__down_'+dim).Clone())
-		hists[1][2*i+1].Add(infilep.Get(channels[j]+'__fgg__'+systematics[i][0]+'__up_'+dim).Clone())
-		hists[1][2*i+2].Add(infilep.Get(channels[j]+'__fgg__'+systematics[i][0]+'__down_'+dim).Clone())
-		hists[2][2*i+1].Add(infilep.Get(channels[j]+'__fbck__'+systematics[i][0]+'__up_'+dim).Clone())
-		hists[2][2*i+2].Add(infilep.Get(channels[j]+'__fbck__'+systematics[i][0]+'__down_'+dim).Clone())
-		hists[3][2*i+1].Add(infilep.Get(channels[j]+'__fntmj__'+systematics[i][0]+'__up_'+dim).Clone())
-		hists[3][2*i+2].Add(infilep.Get(channels[j]+'__fntmj__'+systematics[i][0]+'__down_'+dim).Clone())
+systematics = [('pileup_weight',kMagenta,'Pileup Weight'),
+			   #('JES',kRed+2,'Jet Energy Scale'),
+			   #('JER',kRed-7,'Jet Energy Resolution'),
+			   ('trig_eff_weight',kAzure+9,'Trigger eff.'),
+			   ('lep_ID_weight',kAzure,'Lepton ID eff.'),
+			   ('lep_iso_weight',kViolet-3,'Lepton isolation eff.'),
+			   ('btag_eff_weight',kMagenta-5,'b-tagging eff.'),
+			   ('lumi',kOrange-3,'Luminosity'),
+			   ('ren_scale_weight',kGreen+2,'Renormalization scale'),
+			   ('fact_scale_weight',kGreen-7,'Factorization scale'),
+			   ('comb_scale_weight',kSpring-7,'Combined #mu_{R}/#mu_{F} scale'),
+			   ('pdfas_weight',kSpring+3,'PDF/#alpha_{s} weight')]
+#dictionary of histogram lists
+#first key: topology
+#second key: region
+#third key: type (qq,gg,bck,WJets,QCD)
+hists = {'t1':{'SR':{},'WJets_CR':{}},'t2':{'SR':{},'WJets_CR':{}},'t3':{'SR':{}}}
+types = ['fqq','fgg','fbck','fwjets','fqcd']
+for top in hists :
+	for reg in hists[top] :
+		for t in types :
+			if top=='t1' and t=='fqcd' :
+				continue
+			hists[top][reg][t]=[]
+			#get the nominal templates, starting with the first lepton type
+			print 'looking for histogram with name %s'%(top+'_'+leptypes[0]+'_'+reg+'__'+t+'_'+dim) #DEBUG
+			hists[top][reg][t].append(infilep.Get(top+'_'+leptypes[0]+'_'+reg+'__'+t+'_'+dim).Clone())
+			#add from all the lepton types
+			for i in range(1,len(leptypes)) :
+				hists[top][reg][t][-1].Add(infilep.Get(top+'_'+leptypes[i]+'_'+reg+'__'+t+'_'+dim).Clone())
+			#Get the systematics up/down templates
+			for i in range(len(systematics)) :
+				#get the first lepton type
+				print 'looking for histogram with name %s'%(top+'_'+leptypes[0]+'_'+reg+'__'+t+'__'+systematics[i][0]+'__up_'+dim) #DEBUG
+				hists[top][reg][t].append(infilep.Get(top+'_'+leptypes[0]+'_'+reg+'__'+t+'__'+systematics[i][0]+'__up_'+dim).Clone())
+				hists[top][reg][t].append(infilep.Get(top+'_'+leptypes[0]+'_'+reg+'__'+t+'__'+systematics[i][0]+'__down_'+dim).Clone())
+				#Add from the rest of the lepton types
+				for j in range(1,len(leptypes)) :
+					hists[top][reg][t][-2].Add(infilep.Get(top+'_'+leptypes[j]+'_'+reg+'__'+t+'__'+systematics[i][0]+'__up_'+dim).Clone())
+					hists[top][reg][t][-1].Add(infilep.Get(top+'_'+leptypes[j]+'_'+reg+'__'+t+'__'+systematics[i][0]+'__down_'+dim).Clone())
 
 #open the output file
 outfilep = TFile('template_comparison_plots_systematics_'+dim+'.root','recreate')
 
 #Set histogram attributes
-for i in range(len(hists)) :
-	hists[i][0].SetLineWidth(4); hists[i][0].SetLineColor(kBlack)
-	for j in range(1,len(hists[i])) :
-		hists[i][j].SetLineWidth(4); hists[i][j].SetLineColor(systematics[(j-1)/2][1])
-		if (j-1)%2 == 0 :
-			hists[i][j].SetLineStyle(7)
-		else :
-			hists[i][j].SetLineStyle(3)
 projtype = 'c*'
 if dim == 'y' :
 	projtype = '|x_{F}|'
 if dim == 'z' :
 	projtype = 'M'
-hists[0][0].SetTitle('Systematic variations in q#bar{q} template, '+projtype+' projection; '+projtype+'; Events')
-hists[1][0].SetTitle('Systematic variations in gg template, '+projtype+' projection; '+projtype+'; Events')
-hists[2][0].SetTitle('Systematic variations in simulated background template, '+projtype+' projection; '+projtype+'; Events')
-hists[3][0].SetTitle('Systematic variations in data-driven NTMJ background template, '+projtype+' projection; '+projtype+'; Events')
+for top in hists :
+	for reg in hists[top] :
+		for t in hists[top][reg] :
+			hists[top][reg][t][0].SetLineWidth(4); hists[top][reg][t][0].SetLineColor(kBlack)
+			hists[top][reg][t][0].SetTitle(''); hists[top][reg][t][0].SetStats(0)
+			hists[top][reg][t][0].GetYaxis().SetTitle('Events')
+			hists[top][reg][t][0].GetXaxis().SetTitle(projtype)
+			thismax = hists[top][reg][t][0].GetMaximum()
+			for j in range(1,len(hists[top][reg][t])) :
+				if hists[top][reg][t][j].GetMaximum()>thismax :
+					thismax=hists[top][reg][t][j].GetMaximum()
+			hists[top][reg][t][0].GetYaxis().SetRangeUser(0.,1.1*thismax)
+			for j in range(1,len(hists[top][reg][t])) :
+				hists[top][reg][t][j].SetLineWidth(4); hists[top][reg][t][j].SetLineColor(systematics[(j-1)/2][1])
+				if (j-1)%2 == 0 :
+					hists[top][reg][t][j].SetLineStyle(7)
+				else :
+					hists[top][reg][t][j].SetLineStyle(3)
 
 #make a legend
 leg = TLegend(0.62,0.67,0.9,0.9)
-leg.AddEntry(hists[0][0],'Nominal Template','L')
+leg.AddEntry(hists['t1']['SR']['fqq'][0],'Nominal Template','L')
 for i in range(len(systematics)) :
-	leg.AddEntry(hists[0][2*i+1],systematics_names[i]+' Up','L') 
-	leg.AddEntry(hists[0][2*i+2],systematics_names[i]+' Down','L') 
+	leg.AddEntry(hists['t1']['SR']['fqq'][2*i+1],systematics[i][2]+' Up','L') 
+	leg.AddEntry(hists['t1']['SR']['fqq'][2*i+2],systematics[i][2]+' Down','L') 
 
 #canvases
-canvs = [TCanvas('qq_canv','qq_canv',1100,900),TCanvas('gg_canv','gg_canv',1100,900),TCanvas('bck_canv','bck_canv',1100,900),TCanvas('ntmj_canv','ntmj_canv',1100,900)]
+canvs = {}
+for top in hists :
+	canvs[top] = {}
+	for reg in hists[top] :
+		canvs[top][reg] = {}
+		for t in hists[top][reg] :
+			canvs[top][reg][t]=TCanvas(top+'_'+reg+'_'+t+'_canv',top+'_'+reg+'_'+t+'_canv',1100,900)
 
+all_cms_lumi_objs = []
 #plot plots
-for i in range(len(hists)) :
-	canvs[i].cd()
-	hists[i][0].Draw('HIST')
-	for j in range(len(systematics)) :
-		hists[i][2*j+1].Draw('SAME HIST')
-		hists[i][2*j+2].Draw('SAME HIST')
-	leg.Draw()
+for top in hists :
+	for reg in hists[top] :
+		for t in hists[top][reg] :
+			canvs[top][reg][t].cd()
+			hists[top][reg][t][0].Draw('HIST')
+			for i in range(1,len(hists[top][reg][t])) :
+				hists[top][reg][t][i].Draw('SAME HIST')
+				hists[top][reg][t][i].Draw('SAME HIST')
+			leg.Draw()
+			all_cms_lumi_objs.append(CMS_lumi.CMS_lumi(canvs[top][reg][t], iPeriod, 0))
 
 #save canvases
 outfilep.cd()
-for canv in canvs :
-	canv.Write()
+for top in hists :
+	for reg in hists[top] :
+		for t in hists[top][reg] :
+			canvs[top][reg][t].Write()
 

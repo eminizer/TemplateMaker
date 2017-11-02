@@ -155,7 +155,7 @@ class Template_Group(object) :
 		#set branch addresses for cuts
 		for branch in tree_cut_branches.values() :
 			tree.SetBranchAddress(branch.getTTreeName(),branch.getTTreeArray())
-		#just real quick see if we need to check the event type for every on of the events
+		#just real quick see if we need to check the event type for every one of the events
 		checkeventtype = ttree_file_path.find('powheg_TT')!=-1 or ttree_file_path.find('mcatnlo_TT')!=-1 
 		#do selections and copy relevant events from reconstructor ttrees to process ttrees
 		for entry in range(nentries) :
@@ -165,15 +165,22 @@ class Template_Group(object) :
 					print '		%d%% done'%(percentdone)
 			check = tree.GetEntry(entry)
 			#Check basic selection cuts
-			if tree_cut_branches['fullselection'].getTTreeValue()!=1 :
+			basiccuts = {}
+			basiccuts['SR'] = getBasicCutDict(tree_cut_branches,'SR')
+			basiccuts['WJets_CR'] = getBasicCutDict(tree_cut_branches,'WJets_CR')
+			if basiccuts['SR'].values().count(True)==0 and basiccuts['WJets_CR'].values().count(True)==0 :
 				continue
 			#get the event type and lepton flavor once per event
 			etype = tree_cut_branches['eventType'].getTTreeValue()
 			lepflav = tree_cut_branches['lepflavor'].getTTreeValue()
 			#look through each channel
 			for channel in self.__channel_list :
-				cleptype = channel.getLepType()
+				#first check that this event belongs in this channel's region of phase space
+				cregion = channel.getRegion()
+				if basiccuts[cregion].values().count(True)==0 :
+					continue
 				#check that the event topology and lepton flavors/charges agree (these are the same for every process in this channel)
+				cleptype = channel.getLepType()
 				if int(channel.getTopology().split('t')[1])!=tree_cut_branches['eventTopology'].getTTreeValue() :
 					continue
 				if (cleptype=='mu' and lepflav!=1) or (cleptype=='el' and lepflav!=2) :
@@ -233,7 +240,7 @@ class Template_Group(object) :
 							bdict['lumi_GH_up'].getPTreeArray()[0] = 1.0
 							bdict['lumi_GH_down'].getPTreeArray()[0] = 1.0
 					#fill the tree for this process
-					fillTree(ttree_file_path,process.getJECModList(),treedicts[pname],process.isMCProcess())
+					fillTree(ttree_file_path,process.getJECModList(),treedicts[pname],process.isMCProcess(),basiccuts[cregion])
 					#reset the branch addresses
 					for branch in tree_cut_branches.values() :
 						tree.SetBranchAddress(branch.getTTreeName(),branch.getTTreeArray())
@@ -246,15 +253,26 @@ class Template_Group(object) :
 		ptreesfilep.Close()
 		filep.Close()
 
-	def build_templates(self,ptree_filename) :
+	def build_QCD_templates(self,ptree_filename) :
 		self.__ptree_filename = ptree_filename
-		#Start of with the weightsums
+		#Start of with the weightsums to put in the fit functions everywhere
 		self.__build_weightsums__()
+		#Next build each template's conversion factor
+		self.__calculate_conversion_factors__()
 		#then build all of the templates
 		for c in self.__channel_list :
 			for p in c.getProcessList() :
+				if p.isQCDProcess() :
+					p.buildTemplates(c.getCharge(),self.__ptree_filename)
+		#finally set the NQCD numbers now that the templates are actually built
+		self.__set_NQCD_values__()
+
+	def build_templates(self) :
+		#build all of the templates
+		for c in self.__channel_list :
+			for p in c.getProcessList() :
 				if p.isMCProcess() or p.isDataProcess() :
-					p.buildTemplates(c.getCharge(),ptree_filename)
+					p.buildTemplates(c.getCharge(),self.__ptree_filename)
 
 	def get_list_of_process_trees(self) :
 		treelist = []
@@ -282,45 +300,24 @@ class Template_Group(object) :
 					hist_list.append(t.convertTo1D())
 		return hist_list
 
-#	#return true if the event passes the muon hadronic pretagging criteria
-#	def __event_passes_mu_pretag__(self) :
-#		branches = self.__ttree_cut_branches
-#		flav_ind_preselection = branches['scaled_hadt_pt'].getTTreeValue()>300. and branches['scaled_hadt_M'].getTTreeValue()>50.
-#		muon_preselection = flav_ind_preselection and branches['muTrig'].getTTreeValue()==1 and branches['muon1_pt'].getTTreeValue()>branches['ele1_pt'].getTTreeValue() 
-#		muon_kinematics   = branches['muon1_pt'].getTTreeValue()>40. and abs(branches['muon1_eta'].getTTreeValue())<2.4
-#		muon_ID = branches['muon1_ID'].getTTreeValue()==1
-#		muon_2D = branches['muon1_relPt'].getTTreeValue()>25. or branches['muon1_dR'].getTTreeValue()>0.5
-#		ltm = branches['scaled_lept_M'].getTTreeValue()
-#		lep_top_mass = ltm>140. and ltm<900. #CHANGED
-#		muon_full_leptonic = muon_preselection and muon_kinematics and muon_ID and muon_2D and lep_top_mass 
-#		muon_hadronic_pretag = muon_full_leptonic and branches['hadt_tau21'].getTTreeValue()>0.1
-#		return muon_hadronic_pretag
-#
-#	#return true if the event passes the electron hadronic pretagging criteria
-#	def __event_passes_el_pretag__(self) :
-#		branches = self.__ttree_cut_branches
-#		flav_ind_preselection = branches['scaled_hadt_pt'].getTTreeValue()>300. and branches['scaled_hadt_M'].getTTreeValue()>50.
-#		ele_preselection = flav_ind_preselection and branches['elTrig'].getTTreeValue()==1 and branches['ele1_pt'].getTTreeValue()>branches['muon1_pt'].getTTreeValue()
-#		ele_kinematics = branches['ele1_pt'].getTTreeValue()>40. and abs(branches['ele1_eta'].getTTreeValue())<2.4
-#		ele_ID = branches['ele1_ID'].getTTreeValue()==1
-#		ele_2D = branches['ele1_relPt'].getTTreeValue()>25. or branches['ele1_dR'].getTTreeValue()>0.5
-#		ltm = branches['scaled_lept_M'].getTTreeValue()
-#		lep_top_mass = ltm>140. and ltm<900. #CHANGED
-#		ele_full_leptonic = ele_preselection and ele_kinematics and ele_ID and ele_2D and lep_top_mass
-#		ele_hadronic_pretag = ele_full_leptonic and branches['hadt_tau21'].getTTreeValue()>0.1
-#		return ele_hadronic_pretag
-
 	#Build the weightsums for function replacement in the MC processes
 	def __build_weightsums__(self) :
 		#Make a dictionary of all the weightsums for each possible template type
 		all_weightsums = {}
-		for p in self.__channel_list[0].getProcessList() :
-			if not p.isMCProcess() :
-				continue
-			for t in p.getTemplateList() :
-				ttype = t.getType()
-				if not ttype in all_weightsums.keys() :
-					all_weightsums[ttype]=copy.deepcopy(t.getWeightsumDict())
+		#first key is topology_region
+		for c in self.__channel_list :
+			cregion = c.getRegion(); ctopology = c.getTopology()
+			cidentifier = ctopology+'_'+cregion
+			if not cidentifier in all_weightsums.keys() :
+				all_weightsums[cidentifier] = {}
+			#second key is the type of template (parameter wiggles)
+			for p in c.getProcessList() :
+				if not p.isMCProcess() :
+					continue
+				for t in p.getTemplateList() :
+					ttype = t.getType()
+					if not ttype in all_weightsums[cidentifier].keys() :
+						all_weightsums[cidentifier][ttype]=copy.deepcopy(t.getWeightsumDict())
 		#Get weightsums for individual channels and processes
 		for channel in self.__channel_list :
 			for p in channel.getProcessList() :
@@ -328,45 +325,133 @@ class Template_Group(object) :
 					print '	Getting weightsums for MC process '+p.getName()
 					p.buildWeightsums(channel.getCharge(),self.__ptree_filename)
 		#sum all of the channels/processes together by template type
-		for ttype in all_weightsums :
-			for c in self.__channel_list :
-				for p in c.getProcessList() :
-					if not p.isMCProcess() :
+		for cidentifier in all_weightsums :
+			for ttype in all_weightsums[cidentifier] :
+				for c in self.__channel_list :
+					if not c.getTopology()+'_'+c.getRegion()==cidentifier :
 						continue
-					for t in p.getTemplateList() :
-						if t.getType()==ttype or (t.getType()=='nominal' and ttype not in p.getListOfTTypes()):
-							for ws in all_weightsums[ttype] :
-								for ti in all_weightsums[ttype][ws] :
-									if ti=='wname' :
-										continue
-									all_weightsums[ttype][ws][ti]+=t.getWeightsumDict()[ws][ti]
+					for p in c.getProcessList() :
+						if not p.isMCProcess() :
+							continue
+						for t in p.getTemplateList() :
+							if t.getType()==ttype or (t.getType()=='nominal' and ttype not in p.getListOfTTypes()):
+								for ws in all_weightsums[cidentifier][ttype] :
+									for ti in all_weightsums[cidentifier][ttype][ws] :
+										if ti=='wname' :
+											continue
+										all_weightsums[cidentifier][ttype][ws][ti]+=t.getWeightsumDict()[ws][ti]
 		#Copy over the weightsum dictionaries based on template types
 		for c in self.__channel_list :
+			cregion = c.getRegion(); ctopology = c.getTopology()
+			cidentifier = ctopology+'_'+cregion
 			for p in c.getProcessList() :
 				for t in p.getTemplateList() :
-					ttype = t.getType()
-					if ttype=='fit__up' or ttype=='fit__down' :
-						ttype='nominal'
-					t.setWeightsumDict(copy.deepcopy(all_weightsums[ttype]))
-		#print '	FINAL WEIGHTSUMS: '
-		#for c in self.__channel_list :
-		#	for p in c.getProcessList() :
-		#		if not p.isMCProcess() :
-		#			continue
-		#		for t in p.getTemplateList() :
-		#			print '		Template '+t.getName()+': '
-		#			wsd = t.getWeightsumDict()
-		#			for weightsum_name in wsd :
-		#				s = '			'+weightsum_name+': {'
-		#				for ttree_identifier in wsd[weightsum_name] :
-		#					if ttree_identifier=='wname' :
-		#						continue
-		#					s+='%s:%.2f,'%(ttree_identifier,wsd[weightsum_name][ttree_identifier])
-		#				s+='}'
-		#				print s
+					t.setWeightsumDict(copy.deepcopy(all_weightsums[cidentifier][t.getType()]))
+		print '	FINAL WEIGHTSUMS: '
+		for c in self.__channel_list :
+			cregion = c.getRegion(); ctopology = c.getTopology()
+			cidentifier = ctopology+'_'+cregion
+			print '	Topology_Region '+cidentifier+': '
+			for p in c.getProcessList() :
+				if not p.isMCProcess() :
+					continue
+				for t in p.getTemplateList() :
+					print '		Template '+t.getName()+': '
+					wsd = t.getWeightsumDict()
+					for weightsum_name in wsd :
+						s = '			'+weightsum_name+': {'
+						for ttree_identifier in wsd[weightsum_name] :
+							if ttree_identifier=='wname' :
+								continue
+							s+='%s:%.2f,'%(ttree_identifier,wsd[weightsum_name][ttree_identifier])
+						s+='}'
+						print s
 
-	def __del__(self) :
-		pass
+	#calculate the conversion factors to apply to each QCD template's shape in the sideband
+	def __calculate_conversion_factors__(self) :
+		print '	Calculating conversion factors'
+		#make a dictionary of event numbers
+		event_numbers = {}
+		for c in self.__channel_list :
+			event_numbers[c.getName()] = {}
+			charge = c.getCharge()
+			for p in c.getProcessList() :
+				if p.isQCDProcess() :
+					event_numbers[c.getName()] = p.getEventNumbers(charge,self.__ptree_filename)
+		#Sum the event numbers per topology/region/template type
+		event_numbers2 = {}
+		for c in self.__channel_list :
+			cregion = c.getRegion(); ctopology = c.getTopology()
+			cidentifier = ctopology+'_'+cregion
+			if not cidentifier in event_numbers2.keys() :
+				event_numbers2[cidentifier] = {}
+			for p in c.getProcessList() :
+				if p.isQCDProcess() :
+					for t in p.getTemplateList() :
+						ttype = t.getType()
+						if not ttype in event_numbers2[cidentifier].keys() :
+							event_numbers2[cidentifier][ttype] = {'qcd_a':0.,'qcd_b':0.}
+						event_numbers2[cidentifier][ttype]['qcd_a']+=event_numbers[c.getName()][ttype]['qcd_a']
+						event_numbers2[cidentifier][ttype]['qcd_b']+=event_numbers[c.getName()][ttype]['qcd_b']
+		#Make the conversion factors dictionary per topology/region/template type
+		conv_fac_dict = {}
+		for c in self.__channel_list :
+			cregion = c.getRegion(); ctopology = c.getTopology()
+			cidentifier = ctopology+'_'+cregion
+			if cidentifier not in conv_fac_dict.keys() :
+				conv_fac_dict[cidentifier] = {}
+			for p in c.getProcessList() :
+				if not p.isQCDProcess() :
+					continue
+				for t in p.getTemplateList() :
+					ttype = t.getType()
+					if not ttype in conv_fac_dict[cidentifier].keys() :
+						print '		Finding conversion factor for template '+t.getName()
+						#make the conversion function
+						n_qcd_a = event_numbers2[cidentifier][ttype]['qcd_a']
+						n_qcd_b = event_numbers2[cidentifier][ttype]['qcd_b']
+						print '			n_qcd_a=%.2f, n_qcd_b=%.2f, factor=%.5f'%(n_qcd_a,n_qcd_b,n_qcd_a/n_qcd_b)
+						conv_fac_dict[cidentifier][ttype] = n_qcd_a/n_qcd_b
+				for t in p.getTemplateList() :
+					ttype = t.getType()
+					t.setConversionFactor(conv_fac_dict[cidentifier][ttype])
+
+	def __set_NQCD_values__(self) :
+		print '	Getting and resetting total NQCD values'
+		#get the individual values
+		nqcd_values = {}
+		for c in self.__channel_list :
+			nqcd_values[c.getName()] = {}
+			for p in c.getProcessList() :
+				if not p.isQCDProcess() :
+					continue
+				for t in p.getTemplateList() :
+					ttype = t.getType()
+					nqcd_values[c.getName()][ttype] = t.fixNQCDValues()
+		#sum them over channels per region and NTMJ process type
+		nqcd_values2 = {}
+		for c in self.__channel_list :
+			cregion = c.getRegion(); ctopology = c.getTopology()
+			cidentifier = ctopology+'_'+cregion
+			if not cidentifier in nqcd_values2.keys() :
+				nqcd_values2[cidentifier] = {}
+			for p in c.getProcessList() :
+				if not p.isQCDProcess() :
+					continue
+				for t in p.getTemplateList() :
+					ttype = t.getType()
+					if not ttype in nqcd_values2[cidentifier].keys() :
+						nqcd_values2[cidentifier][ttype]=0.
+					nqcd_values2[cidentifier][ttype]+=nqcd_values[c.getName()][ttype]
+		#print 'nqcd_values2=%s'%(nqcd_values2) #DEBUG
+		#set the values in the templates
+		for c in self.__channel_list :
+			if c.getTopology()=='t1' :
+				continue
+			for p in c.getProcessList() :
+				for t in p.getTemplateList() :
+					print '		Resetting NQCD value for template %s (channel %s, process %s, template type %s'%(t.getName(),c.getName(),p.getName(),t.getType())
+					t.setNQCDValue(nqcd_values2[c.getTopology()+'_'+c.getRegion()][t.getType()])
 
 	def __str__(self) :
 		s = 'Template_Group object:\n'
@@ -387,18 +472,20 @@ class Template_Group(object) :
 def make_channel_list(fit_parameter_tuple,include_mu,include_el,sum_charges,topology_list,include_JEC,include_sss) :
 	channel_list = []
 	for topology in topology_list :
-		if include_mu :
-			if sum_charges :
-				channel_list.append(Channel(topology+'_mu',fit_parameter_tuple,include_JEC,include_sss))
-			else :
-				channel_list.append(Channel(topology+'_muplus',fit_parameter_tuple,include_JEC,include_sss))
-				channel_list.append(Channel(topology+'_muminus',fit_parameter_tuple,include_JEC,include_sss))
-		if include_el :
-			if sum_charges :
-				channel_list.append(Channel(topology+'_el',fit_parameter_tuple,include_JEC,include_sss))
-			else :
-				channel_list.append(Channel(topology+'_elplus',fit_parameter_tuple,include_JEC,include_sss))
-				channel_list.append(Channel(topology+'_elminus',fit_parameter_tuple,include_JEC,include_sss))
+		region_names = ['SR','WJets_CR'] if topology!='t3' else ['SR']
+		for region in region_names :
+			if include_mu :
+				if sum_charges :
+					channel_list.append(Channel(topology+'_mu_'+region,fit_parameter_tuple,include_JEC,include_sss))
+				else :
+					channel_list.append(Channel(topology+'_muplus_'+region,fit_parameter_tuple,include_JEC,include_sss))
+					channel_list.append(Channel(topology+'_muminus_'+region,fit_parameter_tuple,include_JEC,include_sss))
+			if include_el :
+				if sum_charges :
+					channel_list.append(Channel(topology+'_el_'+region,fit_parameter_tuple,include_JEC,include_sss))
+				else :
+					channel_list.append(Channel(topology+'_elplus_'+region,fit_parameter_tuple,include_JEC,include_sss))
+					channel_list.append(Channel(topology+'_elminus_'+region,fit_parameter_tuple,include_JEC,include_sss))
 	return channel_list
 
 #make the list of branches that are only needed for checking selection cuts and nothing else
@@ -406,6 +493,18 @@ def make_dict_of_ttree_cut_branches() :
 	branches = {}
 	#branches needed only for cuts (not anything else)
 	branches['fullselection']=Branch('fullselection',None,'I',2)
+	branches['wjets_cr_selection']=Branch('wjets_cr_selection',None,'I',2)
+	branches['metfilters']=Branch('metfilters',None,'I',2)
+	branches['trigger']=Branch('trigger',None,'I',2)
+	branches['onelepton']=Branch('onelepton',None,'I',2)
+	branches['btags']=Branch('btags',None,'I',2)
+	branches['ak4jetmult']=Branch('ak4jetmult',None,'I',2)
+	branches['ak4jetcuts']=Branch('ak4jetcuts',None,'I',2)
+	branches['validminimization']=Branch('validminimization',None,'I',2)
+	branches['kinfitchi2']=Branch('kinfitchi2',None,'I',2)
+	branches['recoleptM']=Branch('recoleptM',None,'I',2)
+	branches['isolepton']=Branch('isolepton',None,'I',2)
+	branches['METcuts']=Branch('METcuts',None,'I',2)
 	branches['eventTopology']=Branch('eventTopology',None,'i',0)
 	branches['eventType']=Branch('eventType',None,'i',5)
 	branches['addTwice']=Branch('addTwice',None,'I',0)
@@ -416,8 +515,8 @@ def make_dict_of_ttree_cut_branches() :
 #return the weight that should be applied to this event when adding to the given process
 def get_contrib_weight(filepath,process) :
 	pname = process.getName()
-	#if it's a data process return 1 only if it's a data file
-	if process.isDataProcess() :
+	#if it's a data or QCD process return 1 only if it's a data file
+	if process.isDataProcess() or process.isQCDProcess() :
 		if filepath.find('SingleMu')!=-1 and pname[3:].startswith('mu')!=-1 :
 			return 1.0
 		elif filepath.find('SingleEl')!=-1 and pname[3:].startswith('el')!=-1 :
@@ -434,12 +533,17 @@ def get_contrib_weight(filepath,process) :
 			if filepath.find('powheg_TT')!=-1 or filepath.find('mcatnlo_TT')!=-1 :
 				return 1.0
 			return 0.
-		#check the background processes
+		#check the WJets processes
+		if pname.find('fwjets')!=-1 :
+			if filepath.find('WJets_')!=-1 :
+				return 1.0
+			return 0.
+		#check the background processes (non-semilep ttbar, single top, and DYJets)
 		elif pname.find('fbck')!=-1 :
 			if filepath.find('powheg_TT')!=-1 or filepath.find('mcatnlo_TT')!=-1 :
 				return 1.0
 			else :
-				bck_stems = ['ST_s-c','ST_t-c_top','ST_tW-c_top','ST_t-c_antitop','ST_tW-c_antitop']
+				bck_stems = ['ST_s-c','ST_t-c_top','ST_tW-c_top','ST_t-c_antitop','ST_tW-c_antitop','DYJets_M-50_HT-']
 				for bckstem in bck_stems :
 					if filepath.find(bckstem)!=-1 :
 						return 1.0
@@ -456,8 +560,38 @@ def get_contrib_weight(filepath,process) :
 		print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
 		return 0.
 
-def fillTree(ttree_file_path,jecmodlist,ptreedict,isMCProcess) :
+def getBasicCutDict(bs,region) :
+	returndict = {}
+	qcd_base_selection = ( bs['metfilters'].getTTreeValue()==1 and bs['trigger'].getTTreeValue()==1 and bs['onelepton'].getTTreeValue()==1 
+					   and bs['btags'].getTTreeValue()==1 and bs['ak4jetmult'].getTTreeValue()==1 and bs['ak4jetcuts'].getTTreeValue()==1 
+					   and bs['validminimization'].getTTreeValue()==1 )
+	if region=='SR' :
+		returndict['fullselection'] = bs['fullselection'].getTTreeValue()==1
+		sr_addl_selection = bs['kinfitchi2'].getTTreeValue()==1 and bs['recoleptM'].getTTreeValue()==1
+		isolepval = bs['isolepton'].getTTreeValue()
+		metcutsval = bs['METcuts'].getTTreeValue()
+		returndict['qcd_A'] = qcd_base_selection and sr_addl_selection and isolepval==1 and metcutsval==0
+		returndict['qcd_B'] = qcd_base_selection and sr_addl_selection and isolepval==0 and metcutsval==0
+		returndict['qcd_C'] = qcd_base_selection and sr_addl_selection and isolepval==0 and metcutsval==1
+	elif region=='WJets_CR' :
+		returndict['fullselection'] = bs['wjets_cr_selection'].getTTreeValue()==1
+		wjets_cr_addl_selection = bs['kinfitchi2'].getTTreeValue()==0 or bs['recoleptM'].getTTreeValue()==0
+		isolepval = bs['isolepton'].getTTreeValue()
+		metcutsval = bs['METcuts'].getTTreeValue()
+		returndict['qcd_A'] = qcd_base_selection and wjets_cr_addl_selection and isolepval==1 and metcutsval==0
+		returndict['qcd_B'] = qcd_base_selection and wjets_cr_addl_selection and isolepval==0 and metcutsval==0
+		returndict['qcd_C'] = qcd_base_selection and wjets_cr_addl_selection and isolepval==0 and metcutsval==1
+	return returndict
+
+def fillTree(ttree_file_path,jecmodlist,ptreedict,isMCProcess,regioncutdict) :
+	#print 'regioncutdict = %s'%(regioncutdict) #DEBUG
 	treestring = 'sig'
+	if regioncutdict['qcd_A'] :
+		treestring='qcd_a'
+	elif regioncutdict['qcd_B'] :
+		treestring='qcd_b'
+	elif regioncutdict['qcd_C'] :
+		treestring='qcd_c'
 	#If it's a MC distribution, add the JEC part of the name to the tree identifier if necessary
 	if isMCProcess and (ttree_file_path.find('_up')!=-1 or ttree_file_path.find('_down')!=-1) :
 		JEC_ID = ''
@@ -469,4 +603,6 @@ def fillTree(ttree_file_path,jecmodlist,ptreedict,isMCProcess) :
 				JEC_ID = jecmod.getName()+'__down'
 				break
 		treestring+='_'+JEC_ID
+	#if treestring!='sig' : #DEBUG
+	#	print 'treestring = %s'%(treestring) #DEBUG
 	ptreedict[treestring].Fill()

@@ -28,8 +28,8 @@ for i in range(len(keylist)) :
 		elif disttype == 'fgg' :
 			disttypecolors.append(kBlue)
 		elif disttype == 'fbck' :
-			disttypecolors.append(kYellow)
-		elif disttype == 'fntmj' :
+			disttypecolors.append(kMagenta)
+		elif disttype == 'fwjets' :
 			disttypecolors.append(kGreen)
 #output file
 outfile = TFile(options.outfilename,'recreate')
