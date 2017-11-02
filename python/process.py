@@ -1,5 +1,5 @@
 import copy
-from ROOT import TTree
+from ROOT import TTree, TFile
 import multiprocessing
 from modifier import Fit_Parameter, JEC_Modifier, Simple_Systematic
 from branch import Branch
@@ -39,10 +39,10 @@ class Process(object) :
 		#branch dict
 		self.__branch_dict = self.__initialize_branch_dict__()
 		#tree dict
-		self.__tree_dict = {'sig':TTree(name+'_sig_ptree',name+'_sig_ptree'),
-							'qcda':TTree(name+'_qcda_ptree',name+'_qcda_ptree'),
-							'qcdb':TTree(name+'_qcdb_ptree',name+'_qcdb_ptree'),
-							'qcdc':TTree(name+'_qcdc_ptree',name+'_qcdc_ptree')}
+		self.__tree_dict = {'sig':TTree(name+'__sig_ptree',name+'__sig_ptree'),
+							'qcd_a':TTree(name+'__qcda_ptree',name+'__qcda_ptree'),
+							'qcd_b':TTree(name+'__qcdb_ptree',name+'__qcdb_ptree'),
+							'qcd_c':TTree(name+'__qcdc_ptree',name+'__qcdc_ptree')}
 
 	#Getters/Setters/Adders
 	def getName(self) :
@@ -72,6 +72,8 @@ class Process(object) :
 		return self.__branch_dict
 	def getTreeDict(self) :
 		return self.__tree_dict
+	def setTree(self,ttid,thistree) :
+		self.__tree_dict[ttid] = thistree
 	def getJECModList(self) :
 		return self.__jec_modifier_list
 	def getModifierList(self) :
@@ -197,7 +199,6 @@ class MC_Process(Process) :
 							('sf_trig_eff','trig_eff_weight',True),
 							('sf_lep_ID','lep_ID_weight',True),
 							('sf_lep_iso','lep_iso_weight',True),
-							('sf_lep_trk','lep_trk_weight',False),
 							('sf_btag_eff','btag_eff_weight',False),
 							('sf_mu_R','ren_scale_weight',False),
 							('sf_mu_F','fact_scale_weight',False),
@@ -338,9 +339,6 @@ class QCD_Process(Process) :
 		#Add modifiers and templates required by the MC_Processes
 		self.__add_mc_fit_parameters__()
 		self.__add_fit_parameter_templates__()
-		self.__add_pdf_modifiers__()
-		if include_PDF :
-			self.__add_PDF_templates__()
 		self.__add_jec_modifiers__()
 		if include_JEC :
 			self.__add_JEC_templates__()
@@ -351,29 +349,20 @@ class QCD_Process(Process) :
 		self.__initialize_trees__()
 
 	#get the MC-subtracted numbers of data events in the sideband regions for each necessary template type
-	def getEventNumbers(self,charge) :
+	def getEventNumbers(self,charge,ptfn) :
 		print '		Getting event numbers for process '+self.getName()
-		eventnumberssubdict = {}
+		manager = multiprocessing.Manager()
+		eventnumberssubdict = {}; eventnumberssubdict_p = manager.dict()
 		#for each template holding only data events
+		procs = []
 		for t in self.getTemplateList() :
-			print '			Adding numbers from template '+t.getName()
-			#get the event numbers
-			eventnumberssubdict[t.getType()] = {'qcd_a':0.,'qcd_b':0.}
-			#from the data events in the distribution
-			t.getEventNumbers(charge,None,self.getTreeDict(),self.getBranchDict(),None,None,
-							  eventnumberssubdict[t.getType()],self.getBaseFunction(),self.getFitParameterList(),1.0)
-		#subtract off the MC events in each MC process
-		for mcp in self.__mc_process_list :
-			for t in mcp.getTemplateList() :
-				print '			Subtracting numbers from template '+t.getName()
-				#make the JEC append
-				JEC_append = ''
-				mod = t.getModifier()
-				if mod!=None and mod.isJECModifier() :
-					JEC_append = '_'+t.getType()
-				t.getEventNumbers(charge,JEC_append,mcp.getTreeDict(),mcp.getBranchDict(),mcp.getConstantReweightsPTreesList(),
-								  mcp.getSSModifierNameList(),eventnumberssubdict[t.getType()],'('+self.getBaseFunction()+')*('+mcp.getBaseFunction()+')',
-								  self.getFitParameterList()+mcp.getFitParameterList(),-1.0)
+			p = multiprocessing.Process(target=self.__getEventNumbersParallel__, args=(t,charge,ptfn,eventnumberssubdict_p))
+			p.start()
+			procs.append(p)
+		for p in procs :
+			p.join()
+		for k in eventnumberssubdict_p.keys() :
+			eventnumberssubdict[k] = eventnumberssubdict_p[k]
 		for t in self.getTemplateList() :
 			s= '			Event numbers for template '+t.getName()+' = {'
 			for ttid in eventnumberssubdict[t.getType()] :
@@ -381,6 +370,28 @@ class QCD_Process(Process) :
 			s+='}'
 			print s
 		return eventnumberssubdict
+	def __getEventNumbersParallel__(self,t,charge,ptfn,eventnumberssubdict) :
+		print '			Adding numbers from template '+t.getName()
+		#get the event numbers
+		eventnumberssubdict[t.getType()] = {'qcd_a':0.,'qcd_b':0.}
+		#from the data events in the distribution
+		eventnumberssubdict[t.getType()] = t.getEventNumbers(charge,None,self.getTreeDict(),self.getBranchDict(),None,None,eventnumberssubdict[t.getType()],
+															 self.getBaseFunction(),self.getFitParameterList(),1.0,ptfn)
+		#print '				After adding data: %s'%(eventnumberssubdict[t.getType()]) #DEBUG
+		#subtract off the MC events in each MC process
+		for mcp in self.__mc_process_list :
+			print '			Subtracting numbers from MC Process '+mcp.getName()+' for template '+t.getName()
+			#make the JEC append
+			JEC_append = ''
+			mod = t.getModifier()
+			if mod!=None and mod.isJECModifier() :
+				JEC_append = '_'+t.getType()
+			eventnumberssubdict[t.getType()] = t.getEventNumbers(charge,JEC_append,mcp.getTreeDict(),mcp.getBranchDict(),mcp.getConstantReweightsPTreesList(),
+																  mcp.getSSModifierList(),eventnumberssubdict[t.getType()],
+																  '('+self.getBaseFunction()+')*('+mcp.getBaseFunction()+')',
+							  									  self.getFitParameterList()+mcp.getFitParameterList(),-1.0,ptfn)
+			#print '				After subtracting %s MC: %s'%(t.getName(),eventnumberssubdict[t.getType()]) #DEBUG
+
 
 	#build the templates from the data and MC events
 	def buildTemplates(self,channelcharge,ptfn) :
@@ -413,12 +424,14 @@ class QCD_Process(Process) :
 		#subtract all of the MC events
 		for mcp in self.__mc_process_list :
 			t.addTreeToTemplates(channelcharge,'qcd_c',mcp.getTreeDict()['qcd_c'+JEC_append],mcp.getBranchDict(),mcp.getConstantReweightsPTreesList(),
-								 mcp.getSSModifierNameList(),'('+self.getBaseFunction()+')*('+mcp.getBaseFunction()+')',
+								 mcp.getSSModifierList(),'('+self.getBaseFunction()+')*('+mcp.getBaseFunction()+')',
 								 self.getFitParameterList()+mcp.getFitParameterList(),-1.0,ptfn,pb)
 		child_histolist.send(t.getHistos())
 		child_histolist.close()
 
 	#Getters/Setters/Adders
+	def setMCProcessList(self,mcpl) :
+		self.__mc_process_list = mcpl
 	def getMCProcessList(self) :
 		return self.__mc_process_list
 
@@ -428,19 +441,19 @@ class QCD_Process(Process) :
 			for par in mc_p.getFitParameterList() :
 				parname = par.getName()
 				if not parname in self.getFitParameterNameList() :
-					self.addFitParameter(self,copy.deepcopy(par))
+					self.addFitParameter(copy.deepcopy(par))
 	def __add_jec_modifiers__(self) :
 		for mc_p in self.__mc_process_list :
 			for jecmod in mc_p.getJECModifierList() :
 				jecmodname = jecmod.getName()
 				if not jecmodname in self.getJECModifierNameList() :
-					self.addJECModifier(self,copy.deepcopy(jecmod))
+					self.addJECModifier(copy.deepcopy(jecmod))
 	def __add_ss_modifiers__(self) :
 		for mc_p in self.__mc_process_list :
 			for ssmod in mc_p.getSSModifierList() :
 				ssmodname = ssmod.getName()
 				if not ssmodname in self.getSSModifierNameList() :
-					self.addSSModifier(self,copy.deepcopy(ssmod))
+					self.addSSModifier(copy.deepcopy(ssmod))
 
 #Data_Process subclass
 class Data_Process(Process) :

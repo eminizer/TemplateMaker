@@ -31,7 +31,7 @@ class Template(object) :
 								 'NG4':{'wname':'wg4','sig':0.,'qcd_a':0.,'qcd_b':0.,'qcd_c':0.},
 								 'NBCK':{'wname':None,'sig':0.,'qcd_a':0.,'qcd_b':0.,'qcd_c':0.},
 								 'NWJETS':{'wname':None,'sig':0.,'qcd_a':0.,'qcd_b':0.,'qcd_c':0.},
-								 'NQCD':{'wname':None,'sig':0.}}
+								 'NQCD':{'wname':None,'sig':0.,'qcd_a':0.,'qcd_b':0.,'qcd_c':0.}}
 		#QCD templates will eventually need a conversion factor
 		self.__conversion_factor = None
 		#Templates have 3D and 1D projection histograms
@@ -48,7 +48,7 @@ class Template(object) :
 		weightsum_names = []
 		for name in self.__weightsum_dict :
 			if self.__name.find('fqq')!=-1 :
-				if name.find('NQ')!=-1 :
+				if name.find('NQ')!=-1 and name!='NQCD' :
 					weightsum_names.append(name)
 			elif self.__name.find('fgg')!=-1 :
 				if name.find('NG')!=-1 :
@@ -80,7 +80,7 @@ class Template(object) :
 			for entry in range(nEntries) :
 				tree.GetEntry(entry)
 				#get event weight
-				eweight = self.__get_event_weight__(branch_dict,const_rw_name_list,ss_rw_name_list)
+				eweight = self.__get_event_weight__(branch_dict,const_rw_name_list,ss_rw_name_list,identifier.find('qcd')!=-1)
 				#for each weightsum we're making, apply the last remaining weight and then increment the value
 				for weightsumname in weightsum_names :
 					wname = self.__weightsum_dict[weightsumname]['wname']
@@ -100,7 +100,7 @@ class Template(object) :
 			filep.Close()
 
 	#get the numbers of events in the regions specified by the keys of the event_numbers dictionary supplied
-	def getEventNumbers(self,channelcharge,jecappend,ttree_dict,branch_dict,const_rw_name_list,ss_rw_list,event_numbers,function,fit_par_list,extra_weight) :
+	def getEventNumbers(self,channelcharge,jecappend,ttree_dict,branch_dict,const_rw_name_list,ss_rw_list,event_numbers,function,fit_par_list,extra_weight,ptfn) :
 		#for each region (and tree)
 		for ttree_identifier in event_numbers :
 			#First replace the total event numbers in the function
@@ -109,26 +109,34 @@ class Template(object) :
 			realidentifier = ttree_identifier
 			if jecappend!=None :
 				realidentifier+=jecappend
-			tree = ttree_dict[realidentifier]
+			filep = TFile(ptfn)
+			tree = filep.Get(ttree_dict[realidentifier].GetName())
 			for branch in branch_dict.values() :
 				tree.SetBranchAddress(branch.getPTreeName(),branch.getPTreeArray())
 			nEntries = tree.GetEntries()
 			for entry in range(nEntries) :
+				#print 'doing entry %d of %d for template with name %s'%(entry,nEntries,self.getName()) #DEBUG
 				tree.GetEntry(entry)
 				#get the event weight
-				eweight = self.__get_event_weight__(branch_dict,const_rw_name_list,ss_rw_list)
+				eweight = self.__get_event_weight__(branch_dict,const_rw_name_list,ss_rw_list,ttree_identifier.find('qcd')!=-1)
 				eweight_opp = eweight
+				#print '	initial = %.4f'%(eweight) #DEBUG
 				#multiply by the function weights if necessary
 				if functionstring!=None and functionstring!='' :
 					fweight, fweight_opp = self.__get_function_weight__(branch_dict,functionstring)
 					eweight*=fweight; eweight_opp*=fweight_opp
+				#print '	after function weight = %.4f'%(eweight) #DEBUG
 				#multiply by the last +/-1 factor or whatever
 				eweight*=extra_weight; eweight_opp*=extra_weight
+				#print '	after extra weight = %.4f'%(eweight) #DEBUG
 				#add to the event numbers
 				if channelcharge==0 or branch_dict['lep_Q'].getPTreeValue()==channelcharge:
-					event_numbers[ttree_identifier]+=eweight
+					event_numbers[realidentifier]+=eweight
 				if branch_dict['addTwice'].getPTreeValue()==1 and (channelcharge==0 or branch_dict['lep_Q'].getPTreeValue()!=channelcharge) :
-					event_numbers[ttree_identifier]+=eweight_opp
+					event_numbers[realidentifier]+=eweight_opp
+				#print 'for template %s with realidentifier %s eweight for entry %d = %.6f'%(self.getName(),realidentifier,entry,eweight) #DEBUG
+			filep.Close()
+		return event_numbers
 
 	#add the given tree to the template
 	def addTreeToTemplates(self,channelcharge,ttree_identifier,tree,branch_dict,const_rw_name_list,ss_rw_list,function,fit_par_list,extra_weight,ptfn,pb) :
@@ -150,7 +158,7 @@ class Template(object) :
 #			n+=1 #DEBUG
 			tree.GetEntry(entry)
 			#get the event weight
-			eweight = self.__get_event_weight__(branch_dict,const_rw_name_list,ss_rw_list)
+			eweight = self.__get_event_weight__(branch_dict,const_rw_name_list,ss_rw_list,ttree_identifier.find('qcd')!=-1)
 #			s = 'event weight = '+str(eweight) #DEBUG
 			#multiply by the function weights
 			eweight_opp = eweight
@@ -269,7 +277,7 @@ class Template(object) :
 		self.__histo_z  = hlist[3]
 	#Private methods
 	#get the weight for this event based on reweights
-	def __get_event_weight__(self,branch_dict,const_rw_name_list,ss_rw_list) :
+	def __get_event_weight__(self,branch_dict,const_rw_name_list,ss_rw_list,skipiso=False) :
 		eweight = 1.0
 		mod = self.__modifier
 		#constant reweights
@@ -282,7 +290,11 @@ class Template(object) :
 		if ss_rw_list!=None :
 			ss_weights = [1.0,1.0] #BtoF first, then GH
 			for ss in ss_rw_list :
+				#if isinstance(ss,str) : #DEBUG
+				#	print 'ss = %s'%(ss) #DEBUG
 				ssname = ss.getName()
+				if ssname=='lep_iso_weight' and skipiso :
+					continue
 				thisValueBtoF = 1.0; thisValueGH = 1.0
 				if mod!=None and mod.isSSModifier() and mod.getName()==ssname :
 					if self.__name.find('__up')!=-1 :
@@ -304,8 +316,9 @@ class Template(object) :
 					else :
 						thisValueBtoF = thisValueGH = branch_dict[ssname].getPTreeValue()
 				ss_weights[0]*=thisValueBtoF; ss_weights[1]*=thisValueGH
+		#		s+='after sys. %s rw: %s '%(ssname,ss_weights) #DEBUG
 			eweight*=ss_weights[0]+ss_weights[1]
-		#		s+='after systematics rw = '+str(eweight)+', ' #DEBUG
+		#	s+='after systematics rw = '+str(eweight)+', ' #DEBUG
 		#half the weight if we're adding it twice
 		if branch_dict['addTwice'].getPTreeValue() == 1 :
 			eweight*=0.5
@@ -321,10 +334,11 @@ class Template(object) :
 		nqq = self.__weightsum_dict['NQQBAR'][ttree_identifier]
 		nbck = self.__weightsum_dict['NBCK'][ttree_identifier]
 		nwjets = self.__weightsum_dict['NWJETS'][ttree_identifier]
+		nqcd = self.__weightsum_dict['NQCD'][ttree_identifier]
 		others_list = ['NG1','NG2','NG3','NG4','NQ1','NQ2']
 		for s in fssen :
 			if s == 'NTOT' :
-				newfunction1+='('+str(ngg+nqq+nbck)+')'
+				newfunction1+='('+str(ngg+nqq+nbck+nwjets+nqcd)+')'
 			elif s == 'NBCK' :
 				newfunction1+='('+str(nbck)+')'
 			elif s == 'NWJETS' :
@@ -335,6 +349,8 @@ class Template(object) :
 				newfunction1+='('+str(nqq)+')'
 			elif s == 'NGG' :
 				newfunction1+='('+str(ngg)+')'
+			elif s == 'NQCD' :
+				newfunction1+='('+str(nqcd)+')'
 			elif s in others_list :
 				newfunction1+='('+str(self.__weightsum_dict[s][ttree_identifier])+')'
 			else :
@@ -355,7 +371,7 @@ class Template(object) :
 					break
 			if not replaced :
 				newfunction2+=s
-		#print 'NEW FUNCTION FOR TTREE IDENTIFIER '+ttree_identifier+' AND TEMPLATE '+self.__name+' = '+newfunction2.replace(' ','')
+		#print 'NEW FUNCTION FOR TTREE IDENTIFIER '+ttree_identifier+' AND TEMPLATE '+self.__name+' = '+newfunction2.replace(' ','') #DEBUG
 		return newfunction2
 	#return the weight and opposite weight after applying the function reweights
 	def __get_function_weight__(self,branch_dict,functionstring) :
@@ -370,7 +386,8 @@ class Template(object) :
 			else :
 				newfunction+=s
 				newfunction_opp+=s
-		#print '	NEW FUNCTION WITH WEIGHTS = '+str(eval(newfunction))+' = '+newfunction.replace(' ','')
+		#print '	NEW FUNCTION TO EVALUATE = %s'%(newfunction.replace(' ','')) #DEBUG
+		#print '	NEW FUNCTION WITH WEIGHTS = '+str(eval(newfunction))+' = '+newfunction.replace(' ','') #DEBUG
 		return eval(newfunction), eval(newfunction_opp)
 
 	def __del__(self) :

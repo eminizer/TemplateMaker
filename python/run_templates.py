@@ -21,18 +21,24 @@ parser.add_option('--topologies',  type='string', action='store', default='t1_t2
 #fit parameters
 parser.add_option('--Rqqbar', type='float', action='store', default=1.0, dest='Rqqbar', help='Rqqbar scale factor value')
 parser.add_option('--Rbck',   type='float', action='store', default=1.0, dest='Rbck', 	help='Rbck scale factor value')
+parser.add_option('--Rwjets', type='float', action='store', default=1.0, dest='Rwjets', help='Rwjets scale factor value')
+parser.add_option('--Rqcd',   type='float', action='store', default=1.0, dest='Rqcd', 	help='Rqcd scale factor value')
 parser.add_option('--Afb', 	  type='float', action='store', default=0.0, dest='Afb', 	help='Afb value')
 parser.add_option('--mu', 	  type='float', action='store', default=0.0, dest='mu', 	help='mu value')
 parser.add_option('--d', 	  type='float', action='store', default=0.0, dest='d', 		help='d value')
 #fit parameters uncertainties
 parser.add_option('--Rqqbar_sigma', type='float',  action='store', default=0.2,		 dest='Rqqbar_sigma', help='Rqqbar scale factor uncertainty')
 parser.add_option('--Rbck_sigma', 	type='float',  action='store', default=0.2,		 dest='Rbck_sigma',   help='Rbck scale factor uncertainty')
+parser.add_option('--Rwjets_sigma', type='float',  action='store', default=0.2,		 dest='Rwjets_sigma',   help='Rwjets scale factor uncertainty')
+parser.add_option('--Rqcd_sigma', 	type='float',  action='store', default=0.2,		 dest='Rqcd_sigma',   help='Rqcd scale factor uncertainty')
 parser.add_option('--Afb_sigma', 	type='float',  action='store', default=1.0,		 dest='Afb_sigma', 	  help='Afb uncertainty')
 parser.add_option('--mu_sigma', 	type='float',  action='store', default=1.0,		 dest='mu_sigma', 	  help='mu uncertainty')
 parser.add_option('--d_sigma', 		type='float',  action='store', default=1.0,		 dest='d_sigma', 	  help='d uncertainty')
 #fix parameters?
 parser.add_option('--fix_Rqqbar', type='string', action='store', default='no', dest='fix_Rqqbar')
 parser.add_option('--fix_Rbck',   type='string', action='store', default='no', dest='fix_Rbck')
+parser.add_option('--fix_Rwjets', type='string', action='store', default='no', dest='fix_Rwjets')
+parser.add_option('--fix_Rqcd',   type='string', action='store', default='no', dest='fix_Rqcd')
 parser.add_option('--fix_Afb', 	  type='string', action='store', default='no', dest='fix_Afb')
 parser.add_option('--fix_mu', 	  type='string', action='store', default='no', dest='fix_mu')
 parser.add_option('--fix_d', 	  type='string', action='store', default='no', dest='fix_d')
@@ -51,10 +57,12 @@ outputfile_aux = TFile(output_name_aux,'recreate')
 #make the list of fit parameters based on input options
 rqqbar = ('Rqqbar',options.Rqqbar,options.Rqqbar_sigma,options.fix_Rqqbar.lower()=='yes')
 rbck   = ('Rbck',  options.Rbck,  options.Rbck_sigma,  options.fix_Rbck.lower()=='yes')
+rwjets = ('Rwjets',options.Rwjets,options.Rwjets_sigma,options.fix_Rwjets.lower()=='yes')
+rqcd   = ('Rqcd',  options.Rqcd,  options.Rqcd_sigma,  options.fix_Rqcd.lower()=='yes')
 afb    = ('Afb',   options.Afb,   options.Afb_sigma,   options.fix_Afb.lower()=='yes')
 mu 	   = ('mu',    options.mu,    options.mu_sigma,    options.fix_mu.lower()=='yes')
 d 	   = ('d', 	   options.d, 	  options.d_sigma, 	   options.fix_d.lower()=='yes')
-fit_parameter_tuple = (rqqbar,rbck,afb,mu,d)
+fit_parameter_tuple = (rqqbar,rbck,rwjets,rqcd,afb,mu,d)
 #Start up the group of templates
 print 'Creating template group'
 templates = Template_Group(fit_parameter_tuple,options.out_name,options.sum_charges.lower()=='yes',options.include_mu.lower()=='yes',options.include_el.lower()=='yes',
@@ -80,7 +88,8 @@ if (not os.path.isfile(options.out_name+'_process_trees.root')) or options.force
 			ttree_file_path = line.rstrip()
 			print '	Adding files from '+ttree_file_path
 			templates.add_file_to_processes(ttree_file_path)
-			cmd+=ttree_file_path.split('/')[-1].rstrip('skim_all.root')+'_'+options.out_name+'_process_trees_all.root '
+			if os.path.isfile(ttree_file_path.split('/')[-1].rstrip('skim_all.root')+'_'+options.out_name+'_process_trees_all.root') :
+				cmd+=ttree_file_path.split('/')[-1].rstrip('skim_all.root')+'_'+options.out_name+'_process_trees_all.root '
 			print '	Done'
 	#aggregate all the different process tree files
 	print 'Aggregating all process tree files'
@@ -89,7 +98,7 @@ if (not os.path.isfile(options.out_name+'_process_trees.root')) or options.force
 	print 'Done'
 #Build the templates
 print 'Building data-driven QCD templates'
-templates.build_QCD_templates(options.out_name+'_process_trees.root ')
+templates.build_QCD_templates(options.out_name+'_process_trees.root')
 print 'Building DATA and MC-based templates'
 templates.build_templates()
 print 'Done'

@@ -11,9 +11,6 @@ class Modifier(object) :
 	def isSSModifier(self) :
 		return isinstance(self,Simple_Systematic)
 
-	def __del__(self) :
-		pass
-
 	def __str__(self) :
 		s = self.__name
 		return s
@@ -38,9 +35,6 @@ class Fit_Parameter(Modifier) :
 	def getNomValue(self) :
 		return self.__value
 
-	def __del__(self) :
-		pass
-
 	def __str__(self) :
 		s = 'Fit_Parameter: (Modifier:%s, value:%.2f, sigma:%.2f, fix:%s)'%(Modifier.__str__(self),self.__value,self.__sigma,str(self.__fix))
 		return s
@@ -50,12 +44,6 @@ class JEC_Modifier(Modifier) :
 
 	def __init__(self,name) :
 		Modifier.__init__(self,name)
-
-	def __del__(self) :
-		pass
-
-	def __str__(self) :
-		pass
 
 #Simple_Systematic subclass
 class Simple_Systematic(Modifier) :
@@ -79,9 +67,3 @@ class Simple_Systematic(Modifier) :
 		return self.__ptree_name_down
 	def isSplit(self) :
 		return self.__split
-
-	def __del__(self) :
-		pass
-
-	def __str__(self) :
-		pass
