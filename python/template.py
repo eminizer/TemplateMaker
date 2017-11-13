@@ -6,9 +6,9 @@ from math import *
 class Template(object) :
 
 	#histogram limits
-	__XBINS = array('d',[-1.0,-0.8,-0.6,-0.4,-0.2,0.,0.2,0.4,0.6,0.8,1.0])
-	__YBINS = array('d',[0.,0.15,0.45,1.0])
-	__ZBINS = array('d',[750.,1000.,1250.,1500.,1750.,2000.,2500.,3000.,4000.])
+	_XBINS = array('d',[-1.0,-0.8,-0.6,-0.4,-0.2,0.,0.2,0.4,0.6,0.8,1.0])
+	_YBINS = array('d',[0.,0.15,0.45,1.0])
+	_ZBINS = array('d',[750.,1000.,1250.,1500.,1750.,2000.,2500.,3000.,4000.])
 
 	def __init__(self,name,formatted_name,modifier) :
 		#A Template has a name and a formatted name
@@ -35,10 +35,10 @@ class Template(object) :
 		#QCD templates will eventually need a conversion factor
 		self.__conversion_factor = None
 		#Templates have 3D and 1D projection histograms
-		self.__histo_3D = TH3D(name,formatted_name+'; c*; |x_{F}|; M (GeV)',len(self.__XBINS)-1,self.__XBINS,len(self.__YBINS)-1,self.__YBINS,len(self.__ZBINS)-1,self.__ZBINS)
-		self.__histo_x  = TH1D(name+'_x',formatted_name+' X Projection; c*',len(self.__XBINS)-1,self.__XBINS)
-		self.__histo_y  = TH1D(name+'_y',formatted_name+' Y Projection; |x_{F}|',len(self.__YBINS)-1,self.__YBINS)
-		self.__histo_z  = TH1D(name+'_z',formatted_name+' Z Projection; M (GeV)',len(self.__ZBINS)-1,self.__ZBINS)
+		self.__histo_3D = TH3D(name,formatted_name+'; c*; |x_{F}|; M (GeV)',len(self._XBINS)-1,self._XBINS,len(self._YBINS)-1,self._YBINS,len(self._ZBINS)-1,self._ZBINS)
+		self.__histo_x  = TH1D(name+'_x',formatted_name+' X Projection; c*',len(self._XBINS)-1,self._XBINS)
+		self.__histo_y  = TH1D(name+'_y',formatted_name+' Y Projection; |x_{F}|',len(self._YBINS)-1,self._YBINS)
+		self.__histo_z  = TH1D(name+'_z',formatted_name+' Z Projection; M (GeV)',len(self._ZBINS)-1,self._ZBINS)
 		#Set the directories of the newly created histograms
 		self.__histo_3D.SetDirectory(0); self.__histo_x.SetDirectory(0); self.__histo_y.SetDirectory(0); self.__histo_z.SetDirectory(0)
 
@@ -195,9 +195,9 @@ class Template(object) :
 
 	#Fill the histograms given x, y, and z values
 	def Fill(self,x,y,z,w) :
-		inxbounds = x>=self.__XBINS[0] and x<self.__XBINS[len(self.__XBINS)-1]
-		inybounds = y>=self.__YBINS[0] and y<self.__YBINS[len(self.__YBINS)-1]
-		inzbounds = z>=self.__ZBINS[0] and z<self.__ZBINS[len(self.__ZBINS)-1]
+		inxbounds = x>=self._XBINS[0] and x<self._XBINS[len(self._XBINS)-1]
+		inybounds = y>=self._YBINS[0] and y<self._YBINS[len(self._YBINS)-1]
+		inzbounds = z>=self._ZBINS[0] and z<self._ZBINS[len(self._ZBINS)-1]
 		if inxbounds and inybounds and inzbounds :
 			self.__histo_3D.Fill(x,y,z,w)
 			self.__histo_x.Fill(x,w)
