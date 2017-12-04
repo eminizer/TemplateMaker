@@ -1,5 +1,5 @@
 import copy
-from process import MC_Process, QCD_Process, Data_Process
+from process import MC_Process, QCD_Process, Data_Process, Fit_Process
 
 #Channel class
 class Channel(object) :
@@ -7,7 +7,9 @@ class Channel(object) :
 	#process names
 	__mc_process_names = ['fgg','fqq','fbck','fwjets']
 	__QCD_process_names = ['fqcd']
-	__data_process_names = ['DATA']
+	__data_process_names = ['data_obs']
+	#__fit_process_names = ['fqp0','fqp1','fqp2','fqm0','fqm1','fqm2','fg0','fg1','fg2','fg3','fg4']
+	__fit_process_names = ['fqp0','fqm0','fg0']
 
 	def __init__(self,name,fit_parameter_tuple,include_JEC,include_sss) :
 		#find the event topology in this channel
@@ -50,6 +52,9 @@ class Channel(object) :
 		#add the DATA processes
 		for dpn in self.__data_process_names :
 			channel_plist.append(Data_Process(self.__name+'__'+dpn))
+		#add the Fit processes
+		for fpn in self.__fit_process_names :
+			channel_plist.append(Fit_Process(self.__name+'__'+fpn,include_JEC,include_sss))
 		return channel_plist
 
 	def __del__(self) :

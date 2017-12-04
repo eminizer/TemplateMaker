@@ -1,7 +1,7 @@
 import copy
 from math import *
 from array import array
-from ROOT import TFile, TTree, TF1, TCanvas, TLegend, TGraphErrors, TVirtualFitter, kBlue
+from ROOT import TFile, TTree, Double, TH1D
 from channel import Channel
 from branch import Branch
 import multiprocessing
@@ -62,8 +62,8 @@ class Template_Group(object) :
 				for b in bdict.values() :
 					if b.getTTreeName()!=None and b.getTTreeName() not in branches_to_copy.keys() :
 						branches_to_copy[b.getTTreeName()] = copy.deepcopy(b)
-		#spawn processes for adding events to approrpriate processes
-		n_procs = 30
+		#spawn processes for adding events to appropriate processes
+		n_procs = 10
 		procs = []
 		#first segment the tree
 		print '		Segmenting trees for %d parallel processes...'%(n_procs)
@@ -79,6 +79,7 @@ class Template_Group(object) :
 		procs = []
 		for i in range(n_procs) :
 			p = multiprocessing.Process(target=self.filterCopyTree, args=(i==n_procs-1,i,ttree_file_path,ps_for_file))
+			#p = multiprocessing.Process(target=self.filterCopyTree, args=(True,i,ttree_file_path,ps_for_file))
 			procs.append(p)
 			p.start()
 		#make sure all processes completed 
@@ -91,7 +92,7 @@ class Template_Group(object) :
 		#hadd together the separate process tree files
 		print '		Aggregating process tree files'
 		filetype = ttree_file_path.split('/')[-1].rstrip('skim_all.root')
-		cmd = 'hadd '+filetype+'_'+self.__outname+'_process_trees_all.root '
+		cmd = 'hadd -f '+filetype+'_'+self.__outname+'_process_trees_all.root '
 		for i in range(n_procs) :
 			cmd+=filetype+'_'+self.__outname+'_process_trees_'+str(i+1)+'.root '
 		os.system(cmd)
@@ -196,7 +197,7 @@ class Template_Group(object) :
 					pname = process.getName()
 					#for ttbar files, cut on the event type
 					if checkeventtype :
-						if (pname.find('fqq')!=-1 and etype!=0) or (pname.find('fgg')!=-1 and etype!=1) or (pname.find('fbck')!=-1 and etype!=2 and etype!=3) :
+						if ((pname.find('fqq')!=-1 or pname.find('fqp')!=-1 or pname.find('fqm')!=-1) and etype!=0) or (pname.find('fg')!=-1 and etype!=1) or (pname.find('fbck')!=-1 and etype!=2 and etype!=3) :
 							continue
 					#if we made it to this point, this event should be copied into the process's tree(s)!!
 					#get the contribution weight
@@ -212,7 +213,7 @@ class Template_Group(object) :
 					#explicitly fill the contribution weight and luminosity branches for this process
 					bdict['contrib_weight'].getPTreeArray()[0] = contrib_weight
 					if 'lumi_BtoF' in bdict.keys() :
-						if process.isMCProcess() :
+						if process.isMCProcess() or process.isFitProcess():
 							if lepflav==1 :
 								bdict['lumi_BtoF'].getPTreeArray()[0] = LUMINOSITY_BTOF_MU
 								bdict['lumi_BtoF_up'].getPTreeArray()[0] = (1.0+LUMI_MIN_BIAS)*LUMINOSITY_BTOF_MU
@@ -226,7 +227,7 @@ class Template_Group(object) :
 							bdict['lumi_BtoF_up'].getPTreeArray()[0] = 1.0
 							bdict['lumi_BtoF_down'].getPTreeArray()[0] = 1.0
 					if 'lumi_GH' in bdict.keys() :
-						if process.isMCProcess() :
+						if process.isMCProcess() or process.isFitProcess() :
 							if lepflav==1 :
 								bdict['lumi_GH'].getPTreeArray()[0] = LUMINOSITY_GH_MU
 								bdict['lumi_GH_up'].getPTreeArray()[0] = (1.0+LUMI_MIN_BIAS)*LUMINOSITY_GH_MU
@@ -240,7 +241,7 @@ class Template_Group(object) :
 							bdict['lumi_GH_up'].getPTreeArray()[0] = 1.0
 							bdict['lumi_GH_down'].getPTreeArray()[0] = 1.0
 					#fill the tree for this process
-					fillTree(ttree_file_path,process.getJECModList(),treedicts[pname],process.isMCProcess(),basiccuts[cregion])
+					fillTree(ttree_file_path,process.getJECModList(),treedicts[pname],process.isMCProcess(),process.isFitProcess(),basiccuts[cregion])
 					#reset the branch addresses
 					for branch in tree_cut_branches.values() :
 						tree.SetBranchAddress(branch.getTTreeName(),branch.getTTreeArray())
@@ -271,7 +272,7 @@ class Template_Group(object) :
 		#build all of the templates
 		for c in self.__channel_list :
 			for p in c.getProcessList() :
-				if p.isMCProcess() or p.isDataProcess() :
+				if p.isMCProcess() or p.isDataProcess() or p.isFitProcess() :
 					p.buildTemplates(c.getCharge(),self.__ptree_filename)
 
 	def get_list_of_process_trees(self) :
@@ -283,6 +284,7 @@ class Template_Group(object) :
 		return treelist
 
 	def get_list_of_auxiliary_objects(self) :
+		#add histogram projections
 		for c in self.__channel_list :
 			for p in c.getProcessList() :
 				for t in p.getTemplateList() :
@@ -347,6 +349,12 @@ class Template_Group(object) :
 			for p in c.getProcessList() :
 				for t in p.getTemplateList() :
 					t.setWeightsumDict(copy.deepcopy(all_weightsums[cidentifier][t.getType()]))
+		#save nominal values in the 'sig' tree to the auxiliary file
+		for cidentifier in all_weightsums.keys() :
+			for ws in all_weightsums[cidentifier]['nominal'].keys() :
+				newweightsumhist = TH1D(cidentifier+'_'+ws,cidentifier+'_'+ws,1,0.,1.)
+				newweightsumhist.Fill(0.5,all_weightsums[cidentifier]['nominal'][ws]['sig'])
+				self.__aux_obj_list.append(newweightsumhist)
 		print '	FINAL WEIGHTSUMS: '
 		for c in self.__channel_list :
 			cregion = c.getRegion(); ctopology = c.getTopology()
@@ -494,17 +502,12 @@ def make_dict_of_ttree_cut_branches() :
 	#branches needed only for cuts (not anything else)
 	branches['fullselection']=Branch('fullselection',None,'I',2)
 	branches['wjets_cr_selection']=Branch('wjets_cr_selection',None,'I',2)
-	branches['metfilters']=Branch('metfilters',None,'I',2)
-	branches['trigger']=Branch('trigger',None,'I',2)
-	branches['onelepton']=Branch('onelepton',None,'I',2)
-	branches['btags']=Branch('btags',None,'I',2)
-	branches['ak4jetmult']=Branch('ak4jetmult',None,'I',2)
-	branches['ak4jetcuts']=Branch('ak4jetcuts',None,'I',2)
-	branches['validminimization']=Branch('validminimization',None,'I',2)
-	branches['kinfitchi2']=Branch('kinfitchi2',None,'I',2)
-	branches['recoleptM']=Branch('recoleptM',None,'I',2)
-	branches['isolepton']=Branch('isolepton',None,'I',2)
-	branches['METcuts']=Branch('METcuts',None,'I',2)
+	branches['qcd_A_SR_selection']=Branch('qcd_A_SR_selection',None,'I',2)
+	branches['qcd_B_SR_selection']=Branch('qcd_B_SR_selection',None,'I',2)
+	branches['qcd_C_SR_selection']=Branch('qcd_C_SR_selection',None,'I',2)
+	branches['qcd_A_CR_selection']=Branch('qcd_A_CR_selection',None,'I',2)
+	branches['qcd_B_CR_selection']=Branch('qcd_B_CR_selection',None,'I',2)
+	branches['qcd_C_CR_selection']=Branch('qcd_C_CR_selection',None,'I',2)
 	branches['eventTopology']=Branch('eventTopology',None,'i',0)
 	branches['eventType']=Branch('eventType',None,'i',5)
 	branches['addTwice']=Branch('addTwice',None,'I',0)
@@ -523,13 +526,13 @@ def get_contrib_weight(filepath,process) :
 			return 1.0
 		else :
 			return 0.
-	#otherwise if it's a MC process
-	elif process.isMCProcess() :
+	#otherwise if it's a MC or Fit process
+	elif process.isMCProcess() or process.isFitProcess() :
 		#make sure it's not a data file
 		if filepath.find('SingleMu')!=-1 or filepath.find('SingleEl')!=-1 :
 			return 0.
 		#check the ttbar processes
-		if pname.find('fqq')!=-1 or pname.find('fgg')!=-1 :
+		if pname.find('fq')!=-1 or pname.find('fg')!=-1 :
 			if filepath.find('powheg_TT')!=-1 or filepath.find('mcatnlo_TT')!=-1 :
 				return 1.0
 			return 0.
@@ -562,28 +565,19 @@ def get_contrib_weight(filepath,process) :
 
 def getBasicCutDict(bs,region) :
 	returndict = {}
-	qcd_base_selection = ( bs['metfilters'].getTTreeValue()==1 and bs['trigger'].getTTreeValue()==1 and bs['onelepton'].getTTreeValue()==1 
-					   and bs['btags'].getTTreeValue()==1 and bs['ak4jetmult'].getTTreeValue()==1 and bs['ak4jetcuts'].getTTreeValue()==1 
-					   and bs['validminimization'].getTTreeValue()==1 )
 	if region=='SR' :
 		returndict['fullselection'] = bs['fullselection'].getTTreeValue()==1
-		sr_addl_selection = bs['kinfitchi2'].getTTreeValue()==1 and bs['recoleptM'].getTTreeValue()==1
-		isolepval = bs['isolepton'].getTTreeValue()
-		metcutsval = bs['METcuts'].getTTreeValue()
-		returndict['qcd_A'] = qcd_base_selection and sr_addl_selection and isolepval==1 and metcutsval==0
-		returndict['qcd_B'] = qcd_base_selection and sr_addl_selection and isolepval==0 and metcutsval==0
-		returndict['qcd_C'] = qcd_base_selection and sr_addl_selection and isolepval==0 and metcutsval==1
+		returndict['qcd_A'] = bs['qcd_A_SR_selection'].getTTreeValue()==1
+		returndict['qcd_B'] = bs['qcd_B_SR_selection'].getTTreeValue()==1
+		returndict['qcd_C'] = bs['qcd_C_SR_selection'].getTTreeValue()==1
 	elif region=='WJets_CR' :
 		returndict['fullselection'] = bs['wjets_cr_selection'].getTTreeValue()==1
-		wjets_cr_addl_selection = bs['kinfitchi2'].getTTreeValue()==0 or bs['recoleptM'].getTTreeValue()==0
-		isolepval = bs['isolepton'].getTTreeValue()
-		metcutsval = bs['METcuts'].getTTreeValue()
-		returndict['qcd_A'] = qcd_base_selection and wjets_cr_addl_selection and isolepval==1 and metcutsval==0
-		returndict['qcd_B'] = qcd_base_selection and wjets_cr_addl_selection and isolepval==0 and metcutsval==0
-		returndict['qcd_C'] = qcd_base_selection and wjets_cr_addl_selection and isolepval==0 and metcutsval==1
+		returndict['qcd_A'] = bs['qcd_A_CR_selection'].getTTreeValue()==1
+		returndict['qcd_B'] = bs['qcd_B_CR_selection'].getTTreeValue()==1
+		returndict['qcd_C'] = bs['qcd_C_CR_selection'].getTTreeValue()==1
 	return returndict
 
-def fillTree(ttree_file_path,jecmodlist,ptreedict,isMCProcess,regioncutdict) :
+def fillTree(ttree_file_path,jecmodlist,ptreedict,isMCProcess,isFitProcess,regioncutdict) :
 	#print 'regioncutdict = %s'%(regioncutdict) #DEBUG
 	treestring = 'sig'
 	if regioncutdict['qcd_A'] :
@@ -592,15 +586,15 @@ def fillTree(ttree_file_path,jecmodlist,ptreedict,isMCProcess,regioncutdict) :
 		treestring='qcd_b'
 	elif regioncutdict['qcd_C'] :
 		treestring='qcd_c'
-	#If it's a MC distribution, add the JEC part of the name to the tree identifier if necessary
-	if isMCProcess and (ttree_file_path.find('_up')!=-1 or ttree_file_path.find('_down')!=-1) :
+	#If it's a MC or Fit distribution, add the JEC part of the name to the tree identifier if necessary
+	if (isMCProcess or isFitProcess) and (ttree_file_path.find('_up')!=-1 or ttree_file_path.find('_down')!=-1) :
 		JEC_ID = ''
 		for jecmod in jecmodlist :
 			if ttree_file_path.find(jecmod.getName()+'_up') != -1 :
-				JEC_ID = jecmod.getName()+'__up'
+				JEC_ID = jecmod.getName()+'Up'
 				break
 			elif ttree_file_path.find(jecmod.getName()+'_down') != -1 :
-				JEC_ID = jecmod.getName()+'__down'
+				JEC_ID = jecmod.getName()+'Down'
 				break
 		treestring+='_'+JEC_ID
 	#if treestring!='sig' : #DEBUG

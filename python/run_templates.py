@@ -82,7 +82,7 @@ if (not os.path.isfile(options.out_name+'_process_trees.root')) or options.force
 	input_file = open(input_file_path,'r')
 	#Read the files at the path
 	print 'Reading from files'
-	cmd = 'hadd '+options.out_name+'_process_trees.root '
+	cmd = 'hadd -f '+options.out_name+'_process_trees.root '
 	for line in input_file :
 		if not line.startswith('#') :
 			ttree_file_path = line.rstrip()
