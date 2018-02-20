@@ -1,296 +1,397 @@
 from ROOT import *
+import CMS_lumi, tdrstyle
 from math import *
+from array import array
 from optparse import OptionParser
 from template import Template
 
+gROOT.SetBatch()
+
+#dictionary of the process names and their drawing colors
+procs = ['fwjets','fbck','fg0','fqm0','fqp0'] #this is ordered to always stack the MC histograms in the same way
+proc_colors = {'fwjets':kGreen,
+				'fbck':kMagenta,
+		 		'fg0':kBlue,
+		 		'fqm0':kRed+2,
+		 		'fqp0':kRed+2}
+proc_leg_names = {'fwjets':'W+Jets',
+				  'fbck':'Single top/DY Jets',
+				  'fg0':'gg #rightarrow t#bar{t}',
+				  'fqp0':'q#bar{q} #rightarrow t#bar{t}'}
+
 parser = OptionParser()
 parser.add_option('--tfilename',   type='string', action='store', dest='tfilename')
-parser.add_option('--pfhfilename', type='string', action='store', dest='pfhfilename')
+parser.add_option('--cfilename',   type='string', action='store', dest='cfilename')
 parser.add_option('--outfilename', type='string', action='store', dest='outfilename')
 (options, args) = parser.parse_args()
 
-#Make a list of all the channels in the file
-pfhfile = TFile(options.pfhfilename)
-keylist = pfhfile.GetListOfKeys()
-channel_names = ['allchannels']
-disttypes = []
-disttypecolors = []
-for i in range(len(keylist)) :
-	hname = keylist.At(i).GetName()
-	chan = hname.split('__')[0]
-	if not chan in channel_names :
-		channel_names.append(chan)
-	disttype = hname.split('__')[1]
-	if not disttype in disttypes :
-		disttypes.append(disttype)
-		if disttype == 'fqq' :
-			disttypecolors.append(kRed+2)
-		elif disttype == 'fgg' :
-			disttypecolors.append(kBlue)
-		elif disttype == 'fbck' :
-			disttypecolors.append(kMagenta)
-		elif disttype == 'fwjets' :
-			disttypecolors.append(kGreen)
-#output file
+#Set some TDR options
+tdrstyle.setTDRStyle()
+iPeriod = 4 #13TeV iPeriod = 1*(0/1 7 TeV) + 2*(0/1 8 TeV)  + 4*(0/1 13 TeV)
+CMS_lumi.writeExtraText = 1
+CMS_lumi.extraText = "Preliminary"
+
+#Plot class :
+class Plot(object) :
+
+	def __init__(self,channame,dim,lPos=3,iPos=11) :
+		self._dim = dim #dimension (x,y,z)
+		plotvars = {'x':'c*','y':'|x_{F}|','z':'M'}
+		self._plotvar = plotvars[self._dim] #string of plot variable
+		self._lPos = lPos
+		self._iPos = iPos
+		self._channame = channame #name of the channel this plot belongs to
+		#pieces of the plot
+		#MC stack
+		self._MC_stack = THStack(channame+'_'+self._dim+'_stack',';;Events/bin')
+		#make a new template to clone histogram shapes from
+		dummy_template_name = channame+'__'+self._dim+'_dummy_template'
+		dummy_template = Template(dummy_template_name,dummy_template_name,None)
+		#clone histogram for MC error histograms, residual plots, and MC err residuals
+		self._MC_err_histo = None; self._resid = None; self._MC_err_resid = None
+		if self._dim=='x' :
+			self._MC_err_histo = dummy_template.getHistoX().Clone()
+			self._resid = dummy_template.getHistoX().Clone()
+			self._MC_err_resid = dummy_template.getHistoX().Clone()
+		elif self._dim=='y' :
+			self._MC_err_histo = dummy_template.getHistoY().Clone()
+			self._resid = dummy_template.getHistoY().Clone()
+			self._MC_err_resid = dummy_template.getHistoY().Clone()
+		elif self._dim=='z' :
+			self._MC_err_histo = dummy_template.getHistoZ().Clone()
+			self._resid = dummy_template.getHistoZ().Clone()
+			self._MC_err_resid = dummy_template.getHistoZ().Clone()
+		if self._MC_err_histo==None :
+			print 'ERROR: could not get histogram cloned for plot dimension %s in channel %s'%(self._dim,self._channame)
+		#Set attributes and directories
+		#MC err histograms
+		self._MC_err_histo.SetFillColor(kBlack); self._MC_err_histo.SetMarkerStyle(1); 
+		self._MC_err_histo.SetFillStyle(3013); self._MC_err_histo.SetStats(0); self._MC_err_histo.SetDirectory(0)
+		#residual plots
+		self._resid.SetTitle(';'+self._plotvar+';Data/MC'); self._resid.SetStats(0); self._resid.SetMarkerStyle(20); self._resid.SetDirectory(0)
+		#MC err residuals
+		self._MC_err_resid.SetTitle(';'+self._plotvar+';Data/MC'); self._MC_err_resid.SetFillColor(kBlack)
+		self._MC_err_resid.SetStats(0); self._MC_err_resid.SetMarkerStyle(1); self._MC_err_resid.SetFillStyle(3013)
+		self._MC_err_resid.SetDirectory(0)
+		#"oneline" to go at y=1. on the residuals plot
+		self._oneline = TLine(self._resid.GetXaxis().GetBinLowEdge(1),1.,self._resid.GetXaxis().GetBinUpEdge(self._resid.GetNbinsX()),1.)
+		self._oneline.SetLineWidth(3); self._oneline.SetLineStyle(2)
+		#initialize the legend
+		legwidth = 0.25
+		legheight = 0.1+len(procs)*0.05
+		x2 = 0.9; y2 = 0.83
+		if self._lPos==1 :
+			x2 = 0.44
+		elif self._lPos==2 :
+			x2 = 0.7
+		self._leg = TLegend(x2-legwidth,y2-legheight,x2,y2)
+
+	def addMChisto(self,h,pname) :
+		#add the histogram to the stack
+		print '		Adding histogram %s to stack for channel %s and process %s (size=%d)'%(h,self._channame,pname,h.GetSize())
+		self._MC_stack.Add(h,'hist')
+		#increment MC error values
+		for j in range(h.GetSize()) :
+			if not h.IsBinOverflow(j) and not h.IsBinUnderflow(j) :
+				oldcont = self._MC_err_histo.GetBinContent(j)
+				newcont = oldcont+h.GetBinContent(j)
+				self._MC_err_histo.SetBinContent(j,newcont)
+				olderr = self._MC_err_histo.GetBinError(j)
+				newerr = olderr+h.GetBinError(j)**2+h.GetBinContent(j)
+				self._MC_err_histo.SetBinError(j,newerr)
+#				if j==5 : #DEBUG
+#					print '			bin %d content (%.2f -> %.2f) and error (%.2f -> %.2f)'%(j,oldcont,newcont,olderr,newerr) #DEBUG
+		#add a Legend entry
+		if pname in proc_leg_names.keys() :
+			self._leg.AddEntry(h,proc_leg_names[pname],'F')
+
+	def setMCerrors(self) :
+		#in every bin take the sqrt of the MC error since the initial values were sums of err**2
+		print '		Resetting MC stack errors in channel %s (size=%d)'%(self._channame,self._MC_err_histo.GetSize())
+		for j in range(self._MC_err_histo.GetSize()) :
+			if not self._MC_err_histo.IsBinOverflow(j) and not self._MC_err_histo.IsBinUnderflow(j) :
+				self._MC_err_histo.SetBinError(j,sqrt(self._MC_err_histo.GetBinError(j)))
+				self._MC_err_resid.SetBinContent(j,1.)
+				#also set the fractional error for the MC error residual histogram
+				mccont = self._MC_stack.GetStack().Last().GetBinContent(j)
+				if mccont!=0. :
+					self._MC_err_resid.SetBinError(j,self._MC_err_histo.GetBinError(j)/mccont)
+
+	def setDataHisto(self,h) :
+		self._data_histo = h
+		self._data_histo.SetMarkerStyle(20)
+		self._leg.AddEntry(self._data_histo,'data','PE')
+#		print '		setting data histo in channel %s to %s'%(self._channame,self._data_histo) #DEBUG
+
+	def calculateResiduals(self) :
+		#loop over bins
+#		print '		calculating residuals in channel %s using data histo %s with size=%d'%(self._channame,self._data_histo,self._data_histo.GetSize()) #DEBUG
+#		print '		data histo integral = %.2f, MC stack integral = %.2f'%(self._data_histo.Integral(),sum(h.Integral() for h in self._MC_stack.GetHists())) #DEBUG
+		for j in range(self._data_histo.GetSize()) :
+			if self._data_histo.IsBinUnderflow(j) or self._data_histo.IsBinOverflow(j) :
+				continue
+			if self._MC_err_histo.GetBinContent(j)!=0. and self._data_histo.GetBinContent(j)!=0. :
+				resid_cont = 0.; resid_err = 0;
+				datacont = self._data_histo.GetBinContent(j)
+				MC_cont  = self._MC_stack.GetStack().Last().GetBinContent(j)
+				if MC_cont!=0. :
+					resid_cont=datacont/abs(MC_cont)
+					resid_err = sqrt(datacont)/abs(MC_cont)
+				self._resid.SetBinContent(j,resid_cont)
+				self._resid.SetBinError(j,resid_err)
+#				if j==5 : #DEBUG
+#					print '			bin %d residual = %.2f +/- %.2f'%(j,resid_cont,resid_err) #DEBUG
+
+	def plotOnCanvas(self) :
+		outfile.cd()
+		#declare the canvas
+		cname = self._channame+'_'+self._dim+'_canv'
+		self._canv = TCanvas(cname,cname,1100,900)
+		self._canv.cd()
+		#reset the maximum of the stack to show the whole thing
+		self._MC_stack.SetMaximum(1.10*max(self._MC_stack.GetMaximum()+sqrt(self._MC_stack.GetMaximum()),self._data_histo.GetMaximum()+sqrt(self._data_histo.GetMaximum())))
+		#add the MC uncertainty to the legend
+		self._leg.AddEntry(self._MC_err_histo,'MC uncertainty','F')
+		#build the final plot
+		self._canv.cd()
+		gStyle.SetTitleFontSize(0.00001)
+		padname = self._channame+'_'+self._dim
+		self._histo_pad = TPad(padname+'_histo_pad',padname+'_histo_pad',0,0.25,1,1)
+		self._resid_pad = TPad(padname+'_resid_pad',padname+'_resid_pad',0,0,1.,0.25)
+		self._histo_pad.SetLeftMargin(0.16); self._histo_pad.SetRightMargin(0.05) 
+		self._histo_pad.SetTopMargin(0.11);	 self._histo_pad.SetBottomMargin(0.02)
+		self._histo_pad.SetBorderMode(0)
+		self._resid_pad.SetLeftMargin(0.16); self._resid_pad.SetRightMargin(0.05)
+		self._resid_pad.SetTopMargin(0.0);   self._resid_pad.SetBottomMargin(0.42)
+		self._resid_pad.SetBorderMode(0)
+		self._histo_pad.Draw(); self._resid_pad.Draw()
+		#plot on the histogram pad
+		self._histo_pad.cd()
+		self._MC_stack.Draw(); self._MC_err_histo.Draw("SAME E2"); self._data_histo.Draw("SAME PE")
+		if self._lPos!=0 :
+			self._leg.Draw("SAME")
+		#make the channel identifier text
+		chanTxt = 'type '+self._channame.split('_')[0].split('t')[1]
+		if self._channame.split('_')[1].startswith('mu') :
+			chanTxt+=' #mu + jets'
+		elif self._channame.split('_')[1].startswith('el') :
+			chanTxt+=' e + jets'
+		if self._channame.split('_')[1].endswith('plus') :
+			chanTxt+=' (Q>0'
+		elif self._channame.split('_')[1].endswith('minus') :
+			chanTxt+=' (Q<0'
+		if self._channame.find('SR')!=-1 :
+			chanTxt+=' SR)'
+		elif self._channame.find('WJets_CR')!=-1 :
+			chanTxt+=' WJets CR)'
+		chantxt = TLatex()
+		chantxt.SetNDC()
+		chantxt.SetTextAngle(0)
+		chantxt.SetTextColor(kBlack)
+		chantxt.SetTextFont(42)
+		chantxt.SetTextAlign(11) 
+		chantxt.SetTextSize(0.6*0.11)
+		chantxt.DrawLatex(0.16,1-0.11+0.2*0.11,chanTxt)
+		self._MC_stack.GetHistogram().GetXaxis().SetLabelSize(0.)
+		#plot on the residuals pad
+		self._resid_pad.cd()
+		self._MC_err_resid.Draw("E2"); self._oneline.Draw("SAME"); self._resid.Draw("SAME PE")
+		self._MC_err_resid.GetXaxis().SetLabelSize(0.15)
+		self._MC_err_resid.GetYaxis().SetLabelSize(0.15)
+		self._MC_err_resid.GetYaxis().SetTitleOffset(0.25)
+		self._MC_err_resid.GetXaxis().SetTitleSize((0.75/0.25)*self._MC_err_resid.GetXaxis().GetTitleSize())
+		self._MC_err_resid.GetYaxis().SetTitleSize((0.75/0.25)*self._MC_err_resid.GetYaxis().GetTitleSize())
+		self._MC_err_resid.GetYaxis().SetRangeUser(0.1,1.9)
+		self._MC_err_resid.GetYaxis().SetNdivisions(504)
+		self._canv.Update()
+		#plot the CMS_Lumi lines on the canvases
+		all_lumi_objs.append(CMS_lumi.CMS_lumi(self._histo_pad, iPeriod, self._iPos))
+		return self._canv
+
+
+#Process class
+class Process(object) :
+
+	def __init__(self,pname,histo1D) :
+		self._name = pname
+		self._color = proc_colors[self._name]
+		self._histo1D = histo1D
+		self._histo1D.SetDirectory(0)
+		print '			new process with name %s and histo1D %s'%(self._name, self._histo1D)
+
+	def getHistoProjections(self,channame) :
+		#make a new template
+		newname = channame+'__'+self._name
+		self._newtemp = Template(newname+'__POSTFIT',newname+'__POSTFIT',None)
+		#make its histograms from the 1D histo from the file
+		self._newtemp.make_from_1D_histo(self._histo1D)
+		#get the three projection histograms
+		self._x_histo = self._newtemp.getHistoX()
+		self._y_histo = self._newtemp.getHistoY()
+		self._z_histo = self._newtemp.getHistoZ()
+		threehistos = [self._x_histo,self._y_histo,self._z_histo]
+		#set attributes
+		for h in threehistos :
+			h.SetFillColor(self._color); h.SetLineColor(self._color); h.SetMarkerStyle(21); h.SetMarkerColor(self._color); 
+			h.GetXaxis().SetLabelSize(0.); h.SetDirectory(0)
+		#return histogram projections
+		return threehistos
+
+	############### Getters/Setters ###############
+	def getName(self) :
+		return self._name
+	def getHisto1D(self) :
+		return self._histo1D
+
+#plotGroup class
+class PlotGroup(object) :
+
+	def __init__(self,channame) :
+		self._channame = channame #channel name (one group per channel)
+		self._processes = [] #list of contributing processes
+
+	def addProcess(self,pname,histo1D) :
+		self._processes.append(Process(pname,histo1D))
+
+	def initializePlots(self) :
+		#make new plots for each dimension
+		self._x_plot = Plot(self._channame,'x',2)
+		self._y_plot = Plot(self._channame,'y')
+		self._z_plot = Plot(self._channame,'z')
+
+	def addMCHistograms(self) :
+		#for every process
+		for proc in self._processes :
+			print '		Getting projection histograms for process %s'%(proc.getName())
+			#get the three 1-D projection histograms
+			x_histo, y_histo, z_histo = proc.getHistoProjections(self._channame)
+#			print '		Returned histograms:' #DEBUG
+#			print '			x: %s'%(x_histo) #DEBUG
+#			print '			y: %s'%(y_histo) #DEBUG
+#			print '			z: %s'%(z_histo) #DEBUG
+			#add them to the plots
+			self._x_plot.addMChisto(x_histo,proc.getName())
+			self._y_plot.addMChisto(y_histo,proc.getName())
+			self._z_plot.addMChisto(z_histo,proc.getName())
+		#after all the processes have been added, take the sqrt of the bin errors because I was incrementing by the err**2
+		self._x_plot.setMCerrors()
+		self._y_plot.setMCerrors()
+		self._z_plot.setMCerrors()
+
+	def buildResiduals(self) :
+		#first get the 1D input data graph from the initial template file and copy it into a 1D histogram like in the MC processes
+		newname = self._channame+'__data_obs'
+		newdatatemp = Template(newname+'__POSTFIT',newname+'__POSTFIT',None)
+		#initial_templates_file = TFile(options.tfilename)
+		#data1Dhisto = initial_templates_file.Get(newname).Clone()
+		#data1Dhisto.SetDirectory(0)
+		#initial_templates_file.Close()
+		combine_filep = TFile.Open(options.cfilename)
+		data_graph = combine_filep.Get('shapes_fit_s/%s/data'%(self._channame))
+		data1Dhisto = self._processes[0].getHisto1D().Clone()
+		data1Dhisto.SetDirectory(0)
+		data1Dhisto.Reset()
+#		print '		ngraphpoints=%d data1Dhisto: nbins=%d, integral before filling=%.2f'%(data_graph.GetN(),data1Dhisto.GetSize()-2,data1Dhisto.Integral()) #DEBUG
+		for i in range(data_graph.GetN()) :
+			px = array('d',[0.]); py = array('d',[0.])
+			data_graph.GetPoint(i,px,py)
+			err = data_graph.GetErrorY(i)
+#			if i==350 or i==475 : #DEBUG
+#				print '		bin %d in data has px=%d, py=%.4f, err=%.4f'%(i,px[0],py[0],err) #DEBUG
+			data1Dhisto.Fill(px[0],py[0])
+			data1Dhisto.SetBinError(data1Dhisto.FindFixBin(px[0]),err)
+		combine_filep.Close()
+		newdatatemp.make_from_1D_histo(data1Dhisto)
+		self._data_histo_x=newdatatemp.getHistoX()
+		self._data_histo_y=newdatatemp.getHistoY()
+		self._data_histo_z=newdatatemp.getHistoZ()
+#		print '		plot group data histos: 1D=%s, x=%s, y=%s, z=%s (integrals: 1D=%.2f, x=%.2f, y=%.2f, z=%.2f)'%(data1Dhisto,self._data_histo_x,self._data_histo_y,self._data_histo_z,data1Dhisto.Integral(),self._data_histo_x.Integral(),self._data_histo_y.Integral(),self._data_histo_z.Integral()) #DEBUG
+		#add them to the plot
+		self._x_plot.setDataHisto(self._data_histo_x)
+		self._y_plot.setDataHisto(self._data_histo_y)
+		self._z_plot.setDataHisto(self._data_histo_z)
+		#calculate residuals
+		self._x_plot.calculateResiduals()
+		self._y_plot.calculateResiduals()
+		self._z_plot.calculateResiduals()
+
+	def makePlots(self) :
+		self._x_canv = self._x_plot.plotOnCanvas()
+		self._y_canv = self._y_plot.plotOnCanvas()
+		self._z_canv = self._z_plot.plotOnCanvas()
+		outfile.cd()
+		self._x_canv.Write()
+		self._y_canv.Write()
+		self._z_canv.Write()
+
+	############### Getters/Setters ###############
+	def getName(self) :
+		return self._channame
+
+############################################################################################
+#################### 					Main Script 					####################
+############################################################################################
+
+#dict of all PlotGroups (keys = channel names, values = PlotGroup object)
+all_plot_groups = {}
+
+#initialize channels based on reading the input file from Combine
+#Open the input file with the postfit shapes from Combine
+combine_filep = TFile.Open(options.cfilename)
+#cd to the directory with fit results
+gDirectory.cd('shapes_fit_s')
+#each key in this directory's name is a channel name
+print 'Setting up plot groups...'
+for k1 in gDirectory.GetListOfKeys() :
+	channel_name = k1.GetName()
+	print '	Adding channel with name %s'%(channel_name)
+	##skip the control region
+	#if channel_name.find('WJets_CR')!=-1 :
+	#	continue
+	#initialize a plot group for this channel
+	all_plot_groups[channel_name] = PlotGroup(channel_name)
+	#cd to this channel's subdirectory
+	combine_filep.cd('shapes_fit_s/%s'%(channel_name))
+	#find the keys in this directory that are process names
+	for procname in procs :
+		for k2 in gDirectory.GetListOfKeys() :
+			if not k2.GetName()==procname :
+				continue
+			#add processes to the PlotGroup
+			print '		Adding process with name %s'%(k2.GetName())
+			all_plot_groups[channel_name].addProcess(k2.GetName(),gDirectory.Get(k2.GetName()))
+combine_filep.Close()
+
+#start the output file
 outfile = TFile(options.outfilename,'recreate')
-#Make lists of histogram stacks, MC uncertainty graphs, residual plots, canvases, and pads
-x_stacks = []; y_stacks = []; z_stacks = []
-x_err_hs = []; y_err_hs = []; z_err_hs = []
-x_resids = []; y_resids = []; z_resids = []
-x_canvs  = []; y_canvs  = []; z_canvs  = []
-x_histo_pads = []; y_histo_pads = []; z_histo_pads = []
-x_resid_pads = []; y_resid_pads = []; z_resid_pads = []
-#make a new template to clone
-dummy_template = Template('dummy','dummy',None)
-for channame in channel_names :
-	#Projection histo stacks
-	if channame == 'allchannels' :
-		x_stacks.append(THStack(channame+'_x_stack','all channels comparison plot, c* projection;;Events/0.2'))
-		y_stacks.append(THStack(channame+'_y_stack','all channels comparison plot, x_{F} projection;;Events/bin'))
-		z_stacks.append(THStack(channame+'_z_stack','all channels comparison plot, M projection;;Events/bin'))
-	else :
-		x_stacks.append(THStack(channame+'_x_stack',channame+' channel comparison plot, c* projection;;Events/0.2'))
-		y_stacks.append(THStack(channame+'_y_stack',channame+' channel comparison plot, x_{F} projection;;Events/bin'))
-		z_stacks.append(THStack(channame+'_z_stack',channame+' channel comparison plot, M projection;;Events/bin'))
-	#MC Uncertainty graphs
-	x_err_hs.append(dummy_template.getHistoX().Clone()); x_err_hs[len(x_err_hs)-1].SetFillColor(kBlack)
-	y_err_hs.append(dummy_template.getHistoY().Clone()); y_err_hs[len(y_err_hs)-1].SetFillColor(kBlack)
-	z_err_hs.append(dummy_template.getHistoZ().Clone()); z_err_hs[len(z_err_hs)-1].SetFillColor(kBlack)
-	#Residual plots
-	x_resids.append(dummy_template.getHistoX().Clone())
-	x_resids[len(x_resids)-1].SetTitle(';c*;(Data-MC)/#sigma'); x_resids[len(x_resids)-1].SetFillColor(kMagenta+3)
-	y_resids.append(dummy_template.getHistoY().Clone())
-	y_resids[len(x_resids)-1].SetTitle(';x_{F};(Data-MC)/#sigma'); y_resids[len(x_resids)-1].SetFillColor(kMagenta+3)
-	z_resids.append(dummy_template.getHistoZ().Clone())
-	z_resids[len(x_resids)-1].SetTitle(';M (GeV);(Data-MC)/#sigma'); z_resids[len(x_resids)-1].SetFillColor(kMagenta+3)
-	#Canvases
-	x_canvs.append(TCanvas(channame+'_x_canvas',channame+'_x_canvas',900,900))
-	y_canvs.append(TCanvas(channame+'_y_canvas',channame+'_y_canvas',900,900))
-	z_canvs.append(TCanvas(channame+'_z_canvas',channame+'_z_canvas',900,900))
-#Set plot directories
-for i in range(len(channel_names)) :
-	x_err_hs[i].SetDirectory(0); y_err_hs[i].SetDirectory(0); z_err_hs[i].SetDirectory(0)
-	x_resids[i].SetDirectory(0); y_resids[i].SetDirectory(0); z_resids[i].SetDirectory(0)
-nxbins = x_resids[0].GetNbinsX(); nybins = y_resids[0].GetNbinsX(); nzbins = z_resids[0].GetNbinsX()
-#build 3D histograms out of 1D post-fit histograms from theta; add to histogram stacks and MC uncertainty graphs
-disthistos = []
-for k in range(len(disttypes)) :
-	for i in range(len(channel_names)) :
-		channame = channel_names[i]
-		if channame == 'allchannels' :
-			continue
-		#Get histogram from post-fit file and make a new template
-		newname = channame+'__'+disttypes[k]
-		newtemp = Template(newname+'__POSTFIT',newname+'__POSTFIT',None)
-		new1Dhisto = pfhfile.Get(newname)
-		if i==len(channel_names)-1 :
-			disthistos.append(new1Dhisto)
-		newtemp.make_from_1D_histo(new1Dhisto)
-		#Set attributes and add to histogram stack
-		x_histo = newtemp.getHistoX()
-		x_histo.SetFillColor(disttypecolors[k]); x_histo.SetLineColor(disttypecolors[k]); x_histo.SetMarkerStyle(21); x_histo.SetMarkerColor(disttypecolors[k])
-		x_stacks[i].Add(x_histo,'hist')
-		x_stacks[0].Add(x_histo,'hist')
-		#increment error values
-		for j in range(x_histo.GetSize()) :
-			if not x_histo.IsBinOverflow(j) and not x_histo.IsBinUnderflow(j) :
-				x_err_hs[i].SetBinContent(j,x_err_hs[i].GetBinContent(j)+x_histo.GetBinContent(j))
-				x_err_hs[i].SetBinError(j,x_err_hs[i].GetBinError(j)+x_histo.GetBinError(j)**2)
-				x_err_hs[0].SetBinContent(j,x_err_hs[0].GetBinContent(j)+x_histo.GetBinContent(j))
-				x_err_hs[0].SetBinError(j,x_err_hs[0].GetBinError(j)+x_histo.GetBinError(j)**2)
-		#Repeat all of the above for y
-		y_histo = newtemp.getHistoY()
-		y_histo.SetFillColor(disttypecolors[k]); y_histo.SetLineColor(disttypecolors[k]); y_histo.SetMarkerStyle(21); y_histo.SetMarkerColor(disttypecolors[k])
-		y_stacks[i].Add(y_histo,'hist')
-		y_stacks[0].Add(y_histo,'hist')
-		#increment error values
-		for j in range(y_histo.GetSize()) :
-			if not y_histo.IsBinOverflow(j) and not y_histo.IsBinUnderflow(j) :
-				y_err_hs[i].SetBinContent(j,y_err_hs[i].GetBinContent(j)+y_histo.GetBinContent(j))
-				y_err_hs[i].SetBinError(j,y_err_hs[i].GetBinError(j)+y_histo.GetBinError(j)**2)
-				y_err_hs[0].SetBinContent(j,y_err_hs[0].GetBinContent(j)+y_histo.GetBinContent(j))
-				y_err_hs[0].SetBinError(j,y_err_hs[0].GetBinError(j)+y_histo.GetBinError(j)**2)
-		#Repeat all of the above for z
-		z_histo = newtemp.getHistoZ()
-		z_histo.SetFillColor(disttypecolors[k]); z_histo.SetLineColor(disttypecolors[k]); z_histo.SetMarkerStyle(21); z_histo.SetMarkerColor(disttypecolors[k])
-		z_stacks[i].Add(z_histo,'hist')
-		z_stacks[0].Add(z_histo,'hist')
-		#increment error values
-		for j in range(z_histo.GetSize()) :
-			if not z_histo.IsBinOverflow(j) and not z_histo.IsBinUnderflow(j) :
-				z_err_hs[i].SetBinContent(j,z_err_hs[i].GetBinContent(j)+z_histo.GetBinContent(j))
-				z_err_hs[i].SetBinError(j,z_err_hs[i].GetBinError(j)+z_histo.GetBinError(j)**2)
-				z_err_hs[0].SetBinContent(j,z_err_hs[0].GetBinContent(j)+z_histo.GetBinContent(j))
-				z_err_hs[0].SetBinError(j,z_err_hs[0].GetBinError(j)+z_histo.GetBinError(j)**2)
-#Take the root of all of the final MC uncertainties
-for i in range(len(channel_names)) :
-	for j in range(nxbins) :
-		x_err_hs[i].SetBinError(j,sqrt(x_err_hs[i].GetBinError(j)))
-	for j in range(nybins) :
-		y_err_hs[i].SetBinError(j,sqrt(y_err_hs[i].GetBinError(j)))
-	for j in range(nzbins) :
-		z_err_hs[i].SetBinError(j,sqrt(z_err_hs[i].GetBinError(j)))
+
+#Initialize the plot objects in each channel
+print 'Initializing plot objects...'
+for pg in all_plot_groups.values() :
+	print '	in channel %s'%(pg.getName())
+	pg.initializePlots()
+print 'Done'
+
+#build 3D histograms out of 1D post-fit histograms from combine; add to histogram stacks and MC uncertainty graphs
+print 'Building 3D histograms from 1D postfit histograms...'
+for pg in all_plot_groups.values() :
+	print '	in channel %s'%(pg.getName())
+	pg.addMCHistograms()
+print 'Done'
+
 #build residuals plots
-maxxdeviations = []; maxydeviations = []; maxzdeviations = []
-#get the very first template file
-newdatatemplates = []
-initial_templates_file = TFile(options.tfilename)
-for i in range(len(channel_names)) :
-	channame = channel_names[i]
-	maxxdeviations.append(0.0); maxydeviations.append(0.0); maxzdeviations.append(0.0)
-	newname = channame+'__DATA'
-	newdatatemp = Template(newname+'__POSTFIT',newname+'__POSTFIT',None)
-	if channame=='allchannels' :
-		data1Dhisto = initial_templates_file.Get(channel_names[1]+'__DATA').Clone()
-		for j in range(2,len(channel_names)) :
-			newname = channel_names[j]+'__DATA'
-			data1Dhisto.Add(initial_templates_file.Get(newname).Clone())
-	else :
-		data1Dhisto = initial_templates_file.Get(newname).Clone()
-	newdatatemp.make_from_1D_histo(data1Dhisto)
-	newdatatemplates.append(newdatatemp)
-	for j in range(newdatatemp.getHistoX().GetSize()) :
-		if newdatatemp.getHistoX().IsBinUnderflow(j) or newdatatemp.getHistoX().IsBinOverflow(j) :
-			continue
-		if x_err_hs[i].GetBinContent(j)!=0. and newdatatemp.getHistoX().GetBinContent(j)!=0. :
-			delta = newdatatemp.getHistoX().GetBinContent(j) - x_err_hs[i].GetBinContent(j)
-			sigma = sqrt(newdatatemp.getHistoX().GetBinError(j)**2 + x_err_hs[i].GetBinError(j)**2)
-			content = delta/sigma
-			#print '		%s XHISTO BIN %d = (%.2f - %.2f)/sqrt(%.2f^2 + %.2f^2) = %.2f/%.2f = %.2f'%(channame,j,newdatatemp.getHistoX().GetBinContent(j),x_err_hs[i].GetBinContent(j),newdatatemp.getHistoX().GetBinError(j),x_err_hs[i].GetBinError(j),delta,sigma,content) #DEBUG
-			x_resids[i].SetBinContent(j,content)
-			maxxdeviations[i] = max(maxxdeviations[i],abs(content))
-	for j in range(newdatatemp.getHistoY().GetSize()) :
-		if newdatatemp.getHistoY().IsBinUnderflow(j) or newdatatemp.getHistoY().IsBinOverflow(j) :
-			continue
-		if y_err_hs[i].GetBinContent(j)!=0. and newdatatemp.getHistoY().GetBinContent(j)!=0. :
-			delta = newdatatemp.getHistoY().GetBinContent(j) - y_err_hs[i].GetBinContent(j)
-			sigma = sqrt(newdatatemp.getHistoY().GetBinError(j)**2 + y_err_hs[i].GetBinError(j)**2)
-			content = delta/sigma
-			#print '		%s YHISTO BIN %d = (%.2f - %.2f)/sqrt(%.2f^2 + %.2f^2) = %.2f/%.2f = %.2f'%(channame,j,newdatatemp.getHistoY().GetBinContent(j),y_err_hs[i].GetBinContent(j),newdatatemp.getHistoY().GetBinError(j),y_err_hs[i].GetBinError(j),delta,sigma,content) #DEBUG
-			y_resids[i].SetBinContent(j,content)
-			maxydeviations[i] = max(maxydeviations[i],abs(content))
-	for j in range(newdatatemp.getHistoZ().GetSize()) :
-		if newdatatemp.getHistoZ().IsBinUnderflow(j) or newdatatemp.getHistoZ().IsBinOverflow(j) :
-			continue
-		if z_err_hs[i].GetBinContent(j)!=0. and newdatatemp.getHistoZ().GetBinContent(j)!=0. :
-			delta = newdatatemp.getHistoZ().GetBinContent(j) - z_err_hs[i].GetBinContent(j)
-			sigma = sqrt(newdatatemp.getHistoZ().GetBinError(j)**2 + z_err_hs[i].GetBinError(j)**2)
-			content = delta/sigma
-			#print '		%s ZHISTO BIN %d = (%.2f - %.2f)/sqrt(%.2f^2 + %.2f^2) = %.2f/%.2f = %.2f'%(channame,j,newdatatemp.getHistoZ().GetBinContent(j),z_err_hs[i].GetBinContent(j),newdatatemp.getHistoZ().GetBinError(j),z_err_hs[i].GetBinError(j),delta,sigma,content) #DEBUG
-			z_resids[i].SetBinContent(j,content)
-			maxzdeviations[i] = max(maxzdeviations[i],abs(content))
-	#reset stack maxima
-	xmaxdata = newdatatemp.getHistoX().GetMaximum() 
-	ymaxdata = newdatatemp.getHistoY().GetMaximum() 
-	zmaxdata = newdatatemp.getHistoZ().GetMaximum()
-	x_stacks[i].SetMaximum(1.02*max(x_stacks[i].GetMaximum(),xmaxdata+sqrt(xmaxdata)))
-	y_stacks[i].SetMaximum(1.02*max(y_stacks[i].GetMaximum(),ymaxdata+sqrt(ymaxdata)))
-	z_stacks[i].SetMaximum(1.02*max(z_stacks[i].GetMaximum(),zmaxdata+sqrt(zmaxdata)))
-#Set histogram, MC error graph, and residual plot properties
-for i in range(len(channel_names)) :
-	x_resids[i].SetStats(0)
-	x_resids[i].GetXaxis().SetLabelSize((0.05*0.72)/0.28); x_resids[i].GetXaxis().SetTitleOffset(1.0)
-	x_resids[i].GetYaxis().SetLabelSize((0.05*0.72)/0.28); x_resids[i].GetYaxis().SetTitleOffset(0.4)
-	x_resids[i].GetXaxis().SetTitleSize((0.72/0.28)*x_resids[i].GetXaxis().GetTitleSize())
-	x_resids[i].GetYaxis().SetTitleSize((0.72/0.28)*x_resids[i].GetYaxis().GetTitleSize())
-	maxx = 0.1+ceil(maxxdeviations[i])
-	minx = -0.1-ceil(maxxdeviations[i])
-	x_resids[i].GetYaxis().SetRangeUser(minx,maxx)
-	x_resids[i].GetYaxis().SetNdivisions(503)
-	x_resids[i].SetMarkerStyle(20)
-	x_err_hs[i].SetFillStyle(3005)
-	y_resids[i].SetStats(0)
-	y_resids[i].GetXaxis().SetLabelSize((0.05*0.72)/0.28); y_resids[i].GetXaxis().SetTitleOffset(1.0)
-	y_resids[i].GetYaxis().SetLabelSize((0.05*0.72)/0.28); y_resids[i].GetYaxis().SetTitleOffset(0.4)
-	y_resids[i].GetXaxis().SetTitleSize((0.72/0.28)*y_resids[i].GetXaxis().GetTitleSize())
-	y_resids[i].GetYaxis().SetTitleSize((0.72/0.28)*y_resids[i].GetYaxis().GetTitleSize())
-	maxy = 0.1+ceil(maxydeviations[i])
-	miny = -0.1-ceil(maxydeviations[i])
-	y_resids[i].GetYaxis().SetRangeUser(miny,maxy)
-	y_resids[i].GetYaxis().SetNdivisions(503)
-	y_resids[i].SetMarkerStyle(20)
-	y_err_hs[i].SetFillStyle(3005)
-	z_resids[i].SetStats(0)
-	z_resids[i].GetXaxis().SetLabelSize((0.05*0.72)/0.28); z_resids[i].GetXaxis().SetTitleOffset(1.0)
-	z_resids[i].GetYaxis().SetLabelSize((0.05*0.72)/0.28); z_resids[i].GetYaxis().SetTitleOffset(0.4)
-	z_resids[i].GetXaxis().SetTitleSize((0.72/0.28)*z_resids[i].GetXaxis().GetTitleSize())
-	z_resids[i].GetYaxis().SetTitleSize((0.72/0.28)*z_resids[i].GetYaxis().GetTitleSize())
-	maxz = 0.1+ceil(maxzdeviations[i])
-	minz = -0.1-ceil(maxzdeviations[i])
-	z_resids[i].GetYaxis().SetRangeUser(minz,maxz)
-	z_resids[i].GetYaxis().SetNdivisions(503)
-	z_resids[i].SetMarkerStyle(20)
-	z_err_hs[i].SetFillStyle(3005)
-#Build a legend
-leg = TLegend(0.62,0.67,0.9,0.9)
-for i in range(len(disttypes)) :
-	disthistos[i].SetFillColor(disttypecolors[i])
-	leg.AddEntry(disthistos[i],disttypes[i],'F')
-newdatatemplates[0].getHistoX().SetMarkerStyle(20)
-leg.AddEntry(newdatatemplates[0].getHistoX(),'DATA','PE')
-leg.AddEntry(x_err_hs[0],'MC uncertainty','F')
-#plot stacks with data overlaid and residuals
-for i in range(len(channel_names)) :
-	channame = channel_names[i]
-	x_canvs[i].cd() 
-	x_histo_pad=TPad(channame+'_x_histo_pad',channame+'_x_histo_pad',0,0.25,1,1)
-	x_resid_pad=TPad(channame+'_x_residuals_pad',channame+'_x_residuals_pad',0,0,1.,0.25)
-	x_histo_pad.SetCanvas(x_canvs[i]); x_resid_pad.SetCanvas(x_canvs[i])
-	x_histo_pad.SetLeftMargin(0.16); x_histo_pad.SetRightMargin(0.05) 
-	x_histo_pad.SetTopMargin(0.11);	 x_histo_pad.SetBottomMargin(0.02)
-	x_histo_pad.SetBorderMode(0)
-	x_resid_pad.SetLeftMargin(0.16); x_resid_pad.SetRightMargin(0.05)
-	x_resid_pad.SetTopMargin(0.0);   x_resid_pad.SetBottomMargin(0.3)
-	x_resid_pad.SetBorderMode(0)
-	x_resid_pad.Draw(); x_histo_pad.Draw()
-	x_histo_pad.cd(); 
-	newdatatemplates[i].getHistoX().SetMarkerStyle(20)
-	x_stacks[i].Draw(); newdatatemplates[i].getHistoX().Draw('SAME PE1X0'); x_err_hs[i].Draw('SAME E2'); x_stacks[i].GetXaxis().SetLabelOffset(999)
-	leg.Draw()
-	x_resid_pad.cd(); 
-	x_resids[i].Draw('B')
-	x_canvs[i].Update()
-	outfile.cd()
-	x_canvs[i].Write()
-	
-	y_canvs[i].cd() 
-	y_histo_pad=TPad(channame+'_y_histo_pad',channame+'_y_histo_pad',0,0.3,1,1)
-	y_resid_pad=TPad(channame+'_y_residuals_pad',channame+'_y_residuals_pad',0,0,1.,0.3)
-	y_histo_pad.SetCanvas(y_canvs[i]); y_resid_pad.SetCanvas(y_canvs[i])
-	y_histo_pad.SetLeftMargin(0.16); y_histo_pad.SetRightMargin(0.05) 
-	y_histo_pad.SetTopMargin(0.11);	 y_histo_pad.SetBottomMargin(0.02)
-	y_histo_pad.SetBorderMode(0)
-	y_resid_pad.SetLeftMargin(0.16); y_resid_pad.SetRightMargin(0.05)
-	y_resid_pad.SetTopMargin(0.0);   y_resid_pad.SetBottomMargin(0.3)
-	y_resid_pad.SetBorderMode(0)
-	y_resid_pad.Draw(); y_histo_pad.Draw()
-	y_histo_pad.cd(); 
-	newdatatemplates[i].getHistoY().SetMarkerStyle(20)
-	y_stacks[i].Draw(); newdatatemplates[i].getHistoY().Draw('SAME PE1X0'); y_err_hs[i].Draw('SAME E2'); y_stacks[i].GetXaxis().SetLabelOffset(999)
-	leg.Draw()
-	y_resid_pad.cd(); 
-	y_resids[i].Draw('B')
-	y_canvs[i].Update()
-	outfile.cd()
-	y_canvs[i].Write()
-	
-	z_canvs[i].cd() 
-	z_histo_pad=TPad(channame+'_z_histo_pad',channame+'_z_histo_pad',0,0.3,1,1)
-	z_resid_pad=TPad(channame+'_z_residuals_pad',channame+'_z_residuals_pad',0,0,1.,0.3)
-	z_histo_pad.SetCanvas(z_canvs[i]); z_resid_pad.SetCanvas(z_canvs[i])
-	z_histo_pad.SetLeftMargin(0.16); z_histo_pad.SetRightMargin(0.05) 
-	z_histo_pad.SetTopMargin(0.11);	 z_histo_pad.SetBottomMargin(0.02)
-	z_histo_pad.SetBorderMode(0)
-	z_resid_pad.SetLeftMargin(0.16); z_resid_pad.SetRightMargin(0.05)
-	z_resid_pad.SetTopMargin(0.0);   z_resid_pad.SetBottomMargin(0.3)
-	z_resid_pad.SetBorderMode(0)
-	z_resid_pad.Draw(); z_histo_pad.Draw()
-	z_histo_pad.cd(); 
-	newdatatemplates[i].getHistoZ().SetMarkerStyle(20)
-	z_stacks[i].Draw(); newdatatemplates[i].getHistoZ().Draw('SAME PE1X0'); z_err_hs[i].Draw('SAME E2'); z_stacks[i].GetXaxis().SetLabelOffset(999)
-	leg.Draw()
-	z_resid_pad.cd(); 
-	z_resids[i].Draw('B')
-	z_canvs[i].Update()
-	outfile.cd()
-	z_canvs[i].Write()
+print 'Building residual plots...'
+for pg in all_plot_groups.values() :
+	print '	in channel %s'%(pg.getName())
+	pg.buildResiduals()
+print 'Done'
+
+#plot and save all plots
+all_lumi_objs = [] #all the luminosity objects so we don't lose them
+print 'Plotting on canvases...'
+for pg in all_plot_groups.values() :
+	print '	in channel %s'%(pg.getName())
+	pg.makePlots()
+print 'Done'
+
+outfile.Close()

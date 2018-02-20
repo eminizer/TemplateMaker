@@ -40,6 +40,8 @@ class Process(object) :
 	def __init__(self,name,fit_parameter_tuple) :
 		#Set the name and base function based on the process name
 		self.__name = name
+		self.__leptype = autoset_lepton_type_name(name)
+		self.__trig_reg = autoset_trigger_region(name)
 		self.__base_function = autoset_base_function(name.split('__')[1])
 		#Automatically add fit parameters from the base function
 		self.__fit_parameter_list = make_fit_parameter_list(self.__base_function,fit_parameter_tuple)
@@ -59,6 +61,10 @@ class Process(object) :
 	#Getters/Setters/Adders
 	def getName(self) :
 		return self.__name
+	def getLepType(self) :
+		return self.__leptype
+	def getTrigReg(self) :
+		return self.__trig_reg
 	def getFitParameterList(self) :
 		return self.__fit_parameter_list
 	def getFitParameterNameList(self) :
@@ -208,17 +214,6 @@ class MC_Process(Process) :
 	#list of constant reweights
 	__const_reweights_ttrees = ['weight']
 	__const_reweights_ptrees = ['cs_weight']
-	#list of systematic reweights
-	__simple_systematics = [('sf_pileup','pileup_weight',False),
-							('sf_trig_eff','trig_eff_weight',True),
-							('sf_lep_ID','lep_ID_weight',True),
-							('sf_lep_iso','lep_iso_weight',True),
-							('sf_btag_eff','btag_eff_weight',False),
-							('sf_mu_R','ren_scale_weight',False),
-							('sf_mu_F','fact_scale_weight',False),
-							('sf_scale_comb','comb_scale_weight',False),
-							('sf_pdf_alphas','pdfas_weight',False),
-							(None,'lumi',True)]
 	#list of event reweighting factors for qqbar and gg distributions
 	__qqbar_rws = ['wqs1','wqs2','wqa0','wqa1','wqa2','wqs1_opp','wqs2_opp','wqa0_opp','wqa1_opp','wqa2_opp']
 	__gg_rws = ['wg1','wg2','wg3','wg4','wg1_opp','wg2_opp','wg3_opp','wg4_opp']
@@ -227,6 +222,17 @@ class MC_Process(Process) :
 	def __init__(self,name,fit_parameter_tuple,include_JEC,include_sss) :
 		#Set up the Process for this MC_Process
 		Process.__init__(self,name,fit_parameter_tuple)
+		#define the simple systematics
+		self.__simple_systematics = [('sf_pileup','pileup_weight',False),
+							('sf_trig_eff',self.getLepType()+'_trig_eff_weight_'+self.getTrigReg(),True),
+							('sf_lep_ID',self.getLepType()+'_ID_weight',True),
+							('sf_lep_iso',self.getLepType()+'_iso_weight',True),
+							('sf_btag_eff','btag_eff_weight',False),
+							('sf_mu_R','ren_scale_weight',False),
+							('sf_mu_F','fact_scale_weight',False),
+							('sf_scale_comb','comb_scale_weight',False),
+							('sf_pdf_alphas','pdfas_weight',False),
+							(None,'lumi',True)]
 		self.__add_fit_parameter_templates__()
 		if include_JEC :
 			self.__make_JEC_modifier_list__(self.__JEC_names)
@@ -240,10 +246,16 @@ class MC_Process(Process) :
 		self.__add_JEC_trees__()
 
 	#Public functions
-	def buildWeightsums(self,channelcharge,ptfn) :
+	def buildWeightsums(self,channelcharge,ptfn,n_procs) :
 		procs = []
 		pipe_ends = []
 		for t in self.getTemplateList() :
+			if len(procs)>=n_procs :
+				for item in pipe_ends :
+					item[1].setWeightsumDict(item[0].recv())
+				for p in procs :
+					p.join()
+				procs = []; pipe_ends = []
 			p_wsd, c_wsd = multiprocessing.Pipe()
 			p = multiprocessing.Process(target=buildWeightsumsParallel, args=(c_wsd,t,copy.deepcopy(self.getTreeDict()),copy.deepcopy(self.getBranchDict()),
 																			  self.__const_reweights_ptrees,self.getSSModifierList(),channelcharge,ptfn))
@@ -255,13 +267,19 @@ class MC_Process(Process) :
 		for p in procs :
 			p.join()
 
-	def buildTemplates(self,channelcharge,ptfn) :
+	def buildTemplates(self,channelcharge,ptfn,n_procs) :
 		print '	Building templates for process %s...'%(self.getName())
 		procs = []
 		pipe_ends = []
 		#for each template
 		tlist = self.getTemplateList()
 		for i in range(len(tlist)) :
+			if len(procs)>=n_procs :
+				for item in pipe_ends :
+					item[1].setHistos(item[0].recv())
+				for p in procs :
+					p.join()
+				procs = []; pipe_ends = []
 			t = tlist[i]
 			p_hl, c_hl = multiprocessing.Pipe()
 			#make the JEC append
@@ -363,13 +381,17 @@ class QCD_Process(Process) :
 		self.__initialize_trees__()
 
 	#get the MC-subtracted numbers of data events in the sideband regions for each necessary template type
-	def getEventNumbers(self,charge,ptfn) :
+	def getEventNumbers(self,charge,ptfn,n_procs) :
 		print '		Getting event numbers for process '+self.getName()
 		manager = multiprocessing.Manager()
 		eventnumberssubdict = {}; eventnumberssubdict_p = manager.dict()
 		#for each template holding only data events
 		procs = []
 		for t in self.getTemplateList() :
+			if len(procs)>=n_procs :
+				for p in procs :
+					p.join()
+				procs = []
 			p = multiprocessing.Process(target=self.__getEventNumbersParallel__, args=(t,charge,ptfn,eventnumberssubdict_p))
 			p.start()
 			procs.append(p)
@@ -391,7 +413,7 @@ class QCD_Process(Process) :
 		#from the data events in the distribution
 		eventnumberssubdict[t.getType()] = t.getEventNumbers(charge,None,self.getTreeDict(),self.getBranchDict(),None,None,eventnumberssubdict[t.getType()],
 															 self.getBaseFunction(),self.getFitParameterList(),1.0,ptfn)
-		#print '				After adding data: %s'%(eventnumberssubdict[t.getType()]) #DEBUG
+		print '				After adding data: %s'%(eventnumberssubdict[t.getType()]) #DEBUG
 		#subtract off the MC events in each MC process
 		for mcp in self.__mc_process_list :
 			print '			Subtracting numbers from MC Process '+mcp.getName()+' for template '+t.getName()
@@ -404,17 +426,23 @@ class QCD_Process(Process) :
 																  mcp.getSSModifierList(),eventnumberssubdict[t.getType()],
 																  '('+self.getBaseFunction()+')*('+mcp.getBaseFunction()+')',
 							  									  self.getFitParameterList()+mcp.getFitParameterList(),-1.0,ptfn)
-			#print '				After subtracting %s MC: %s'%(t.getName(),eventnumberssubdict[t.getType()]) #DEBUG
+			print '				After subtracting %s MC: %s'%(mcp.getName(),eventnumberssubdict[t.getType()]) #DEBUG
 
 
 	#build the templates from the data and MC events
-	def buildTemplates(self,channelcharge,ptfn) :
+	def buildTemplates(self,channelcharge,ptfn,n_procs) :
 		print '	Building templates for QCD process %s...'%(self.getName())
 		procs = []
 		pipe_ends = []
 		#for each template
 		tlist = self.getTemplateList()
 		for i in range(len(tlist)) :
+			if len(procs)>=n_procs :
+				for item in pipe_ends :
+					item[1].setHistos(item[0].recv())
+				for p in procs :
+					p.join()
+				procs = []; pipe_ends = []
 			t = tlist[i]
 			p_hl, c_hl = multiprocessing.Pipe()
 			p = multiprocessing.Process(target=self.__buildQCDTemplatesParallel__, args=(c_hl,t,channelcharge,ptfn,i==len(tlist)-1))
@@ -477,13 +505,19 @@ class Data_Process(Process) :
 		#Initialize the tree
 		Process.__initialize_trees__(self)
 
-	def buildTemplates(self,channelcharge,ptfn) :
+	def buildTemplates(self,channelcharge,ptfn,n_procs) :
 		print '	Building templates for process %s...'%(self.getName())
 		procs = []
 		pipe_ends = []
 		#for each template
 		tlist = self.getTemplateList()
 		for i in range(len(tlist)) :
+			if len(procs)>=n_procs :
+				for item in pipe_ends :
+					item[1].setHistos(item[0].recv())
+				for p in procs :
+					p.join()
+				procs = []; pipe_ends = []
 			t = tlist[i]
 			p_hl, c_hl = multiprocessing.Pipe()
 			p = multiprocessing.Process(target=buildTemplatesParallel,args=(c_hl,t,channelcharge,copy.deepcopy(self.getTreeDict()['sig']),
@@ -512,17 +546,6 @@ class Fit_Process(Process) :
 	#list of constant reweights
 	__const_reweights_ttrees = ['weight']
 	__const_reweights_ptrees = ['cs_weight']
-	#list of systematic reweights
-	__simple_systematics = [('sf_pileup','pileup_weight',False),
-							('sf_trig_eff','trig_eff_weight',True),
-							('sf_lep_ID','lep_ID_weight',True),
-							('sf_lep_iso','lep_iso_weight',True),
-							('sf_btag_eff','btag_eff_weight',False),
-							('sf_mu_R','ren_scale_weight',False),
-							('sf_mu_F','fact_scale_weight',False),
-							('sf_scale_comb','comb_scale_weight',False),
-							('sf_pdf_alphas','pdfas_weight',False),
-							(None,'lumi',True)]
 	#list of event reweighting factors for qqbar and gg distributions
 	__qqbar_rws = ['wqs1','wqs2','wqa0','wqa1','wqa2','wqs1_opp','wqs2_opp','wqa0_opp','wqa1_opp','wqa2_opp']
 	__gg_rws = ['wg1','wg2','wg3','wg4','wg1_opp','wg2_opp','wg3_opp','wg4_opp']
@@ -531,6 +554,17 @@ class Fit_Process(Process) :
 	def __init__(self,name,include_JEC,include_sss) :
 		#Set up the Process for this MC_Process
 		Process.__init__(self,name,None)
+		#define the simple systematics
+		self.__simple_systematics = [('sf_pileup','pileup_weight',False),
+							('sf_trig_eff',self.getLepType()+'_trig_eff_weight_'+self.getTrigReg(),True),
+							('sf_lep_ID',self.getLepType()+'_ID_weight',True),
+							('sf_lep_iso',self.getLepType()+'_iso_weight',True),
+							('sf_btag_eff','btag_eff_weight',False),
+							('sf_mu_R','ren_scale_weight',False),
+							('sf_mu_F','fact_scale_weight',False),
+							('sf_scale_comb','comb_scale_weight',False),
+							('sf_pdf_alphas','pdfas_weight',False),
+							(None,'lumi',True)]
 		if include_JEC :
 			self.__make_JEC_modifier_list__(self.__JEC_names)
 			self.__add_JEC_templates__()
@@ -542,13 +576,19 @@ class Fit_Process(Process) :
 		#Add the JEC trees to the dictionary
 		self.__add_JEC_trees__()
 
-	def buildTemplates(self,channelcharge,ptfn) :
+	def buildTemplates(self,channelcharge,ptfn,n_procs) :
 		print '	Building templates for fit process %s...'%(self.getName())
 		procs = []
 		pipe_ends = []
 		#for each template
 		tlist = self.getTemplateList()
 		for i in range(len(tlist)) :
+			if len(procs)>=n_procs :
+				for item in pipe_ends :
+					item[1].setHistos(item[0].recv())
+				for p in procs :
+					p.join()
+				procs = []; pipe_ends = []
 			t = tlist[i]
 			p_hl, c_hl = multiprocessing.Pipe()
 			#make the JEC append
@@ -698,5 +738,31 @@ def buildTemplatesParallel(child_histolist,t,channelcharge,thistree,bd,crws,ssrw
 	t.addTreeToTemplates(channelcharge,'sig',thistree,bd,crws,ssrws,bf,fpl,1.0,ptfn,pb)
 	child_histolist.send(t.getHistos())
 	child_histolist.close()
+
+#Automatically returns the lepton type name based on the process name
+def autoset_lepton_type_name(name) :
+	leptontypename = ''
+	if name.split('__')[0].split('_')[1].startswith('mu') :
+		leptontypename = 'mu'
+	elif name.split('__')[0].split('_')[1].startswith('el') :
+		leptontypename = 'el'
+	else :
+		print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+		print '!!!!!!   WARNING, LEPTON TYPE NOT RECOGNIZED FROM PROCESS '+name+'   !!!!!!'
+		print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+	return leptontypename
+
+#Automatically returns the trigger region based on the process name
+def autoset_trigger_region(name) :
+	trigreg = ''
+	if name.split('__')[0].split('_')[0] in ['t1','t2'] :
+		trigreg = 'b'
+	elif name.split('__')[0].split('_')[0] in ['t3'] :
+		trigreg = 'r'
+	else :
+		print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+		print '!!!!!!   WARNING, TRIGGER REGION NOT RECOGNIZED FROM PROCESS '+name+'   !!!!!!'
+		print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+	return trigreg
 
 
