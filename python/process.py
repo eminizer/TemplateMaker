@@ -8,12 +8,12 @@ from template import Template
 #Functions
 PREFAC_1 = '( @NTOT@ - @NBCK@ * #Rbck# - @NWJETS@ * #Rwjets# - @NQCD@ * #Rqcd# ) * ( 1. / @NTTBAR@ )'
 PREFAC_2 = '( @NTTBAR@ - @NQQBAR@ * #Rqqbar# ) * ( 1. / ( @NTTBAR@ - @NQQBAR@ ) )'
-FGG  = '( 1. + #mu# * ( 1. - #mu# ) * ( @NG1@ / ( @NTTBAR@ - @NQQBAR@ ) )'
+FGG  = '( 1. + #mu# * ( 1. + #mu# ) * ( @NG1@ / ( @NTTBAR@ - @NQQBAR@ ) )'
 FGG += ' + ( #mu# * #mu# + #d# * #d# ) * ( ( 1. + #mu# ) * ( @NG2@ / ( @NTTBAR@ - @NQQBAR@ ) )'
 FGG += ' + (1. - 5. * #mu# ) * ( @NG3@ / ( @NTTBAR@ - @NQQBAR@ ) )'
 FGG += ' + ( #mu# * #mu# + #d# * #d# ) * ( @NG4@ / ( @NTTBAR@ - @NQQBAR@ ) ) ) )'
 FQQ  = '( 1. + ( 2. * #mu# + #mu# * #mu# - #d# * #d# ) * ( @NQ1@ / @NQQBAR@ ) + ( #mu# * #mu# + #d# * #d# ) * ( @NQ2@ / @NQQBAR@ ) )'
-fgg_func  = PREFAC_1+' * '+PREFAC_2+' * (1. / '+FGG+' ) * ( 1. + #mu# * (1. - #mu# ) * $wg1$'
+fgg_func  = PREFAC_1+' * '+PREFAC_2+' * (1. / '+FGG+' ) * ( 1. + #mu# * (1. + #mu# ) * $wg1$'
 fgg_func += ' + ( #mu# * #mu# + #d# * #d# ) * ( ( 1. + #mu# ) * $wg2$ + ( 1. - 5. * #mu# ) * $wg3$'
 fgg_func += ' + ( #mu# * #mu# + #d# * #d# ) * $wg4$ ) )'
 fqq_func  = PREFAC_1+' * ( 1. / '+FQQ+' ) * #Rqqbar# * ( 1. + #Afb# * $wqa0$ + ( 2. * #mu# + #mu# * #mu# - #d# * #d# ) * ( $wqs1$ + #Afb# * $wqa1$ )'
@@ -21,6 +21,18 @@ fqq_func += ' + ( #mu# * #mu# + #d# * #d# ) * ( $wqs2$ + #Afb# * $wqa2$ ) )'
 fbck_func = '#Rbck#'
 fwjets_func = '#Rwjets#'
 fqcd_func = '#Rqcd#'
+#-------------------------------
+fqp0_func = '( 0.5 * (1 + $wqa0$) )'
+fqp1_func = '( 0.5 * ($wqs1$ + $wqa1$) )'
+fqp2_func = '( 0.5 * ($wqs2$ + $wqa2$) )'
+fqm0_func = '( 0.5 * (1 - $wqa0$) )'
+fqm1_func = '( 0.5 * ($wqs1$ - $wqa1$) )'
+fqm2_func = '( 0.5 * ($wqs2$ - $wqa2$) )'
+fg0_func  = '( 1. )'
+fg1_func  = '( $wg1$ )'
+fg2_func  = '( $wg2$ )'
+fg3_func  = '( $wg3$ )'
+fg4_func  = '( $wg4$ )'
 
 #Process class
 class Process(object) :
@@ -28,6 +40,8 @@ class Process(object) :
 	def __init__(self,name,fit_parameter_tuple) :
 		#Set the name and base function based on the process name
 		self.__name = name
+		self.__leptype = autoset_lepton_type_name(name)
+		self.__trig_reg = autoset_trigger_region(name)
 		self.__base_function = autoset_base_function(name.split('__')[1])
 		#Automatically add fit parameters from the base function
 		self.__fit_parameter_list = make_fit_parameter_list(self.__base_function,fit_parameter_tuple)
@@ -47,6 +61,10 @@ class Process(object) :
 	#Getters/Setters/Adders
 	def getName(self) :
 		return self.__name
+	def getLepType(self) :
+		return self.__leptype
+	def getTrigReg(self) :
+		return self.__trig_reg
 	def getFitParameterList(self) :
 		return self.__fit_parameter_list
 	def getFitParameterNameList(self) :
@@ -93,6 +111,8 @@ class Process(object) :
 		return isinstance(self,Data_Process)
 	def isQCDProcess(self) :
 		return isinstance(self,QCD_Process)
+	def isFitProcess(self) :
+		return isinstance(self,Fit_Process)
 	def addFitParameter(self,par) :
 		self.__fit_parameter_list.append(par)
 	def addJECModifier(self,jecmod) :
@@ -109,8 +129,8 @@ class Process(object) :
 			if fitpar.isFixed() :
 				continue
 			parname = fitpar.getName()
-			tempnames = ((self.__name+'__par_'+parname+'__up',self.__name+' process par '+parname+' up template'),
-						 (self.__name+'__par_'+parname+'__down',self.__name+' process par '+parname+' down template'))
+			tempnames = ((self.__name+'__par_'+parname+'Up',self.__name+' process par '+parname+' up template'),
+						 (self.__name+'__par_'+parname+'Down',self.__name+' process par '+parname+' down template'))
 			for tempname in tempnames :
 				self.__template_list.append(Template(tempname[0],tempname[1],fitpar))
 	#Make the list of simple systematic modifiers based on the modifier names in the ttrees and process trees
@@ -128,16 +148,16 @@ class Process(object) :
 	def __add_JEC_templates__(self) :
 		for jecmod in self.__jec_modifier_list :
 			parname = jecmod.getName()
-			tempnames = ((self.__name+'__'+parname+'__up',self.__name+' process '+parname+' up template'),
-						 (self.__name+'__'+parname+'__down',self.__name+' process '+parname+' down template'))
+			tempnames = ((self.__name+'__'+parname+'Up',self.__name+' process '+parname+' up template'),
+						 (self.__name+'__'+parname+'Down',self.__name+' process '+parname+' down template'))
 			for tempname in tempnames :
 				self.__template_list.append(Template(tempname[0],tempname[1],jecmod))
 	#add the templates required by the current list of simple systematic modifiers
 	def __add_ss_templates__(self) :
 		for ssmod in self.__ss_modifier_list :
 			parname = ssmod.getName()
-			tempnames = ((self.__name+'__'+parname+'__up',self.__name+' process '+parname+' up template'),
-						 (self.__name+'__'+parname+'__down',self.__name+' process '+parname+' down template'))
+			tempnames = ((self.__name+'__'+parname+'Up',self.__name+' process '+parname+' up template'),
+						 (self.__name+'__'+parname+'Down',self.__name+' process '+parname+' down template'))
 			for tempname in tempnames :
 				self.__template_list.append(Template(tempname[0],tempname[1],ssmod))
 	#adds branches for observables 
@@ -155,9 +175,9 @@ class Process(object) :
 		nominal_t_names = self.__tree_dict.keys()
 		for jecmod in self.__jec_modifier_list :
 			for tname in nominal_t_names :
-				newtname = tname+'_'+jecmod.getName()+'__up'
+				newtname = tname+'_'+jecmod.getName()+'Up'
 				self.__tree_dict[newtname] = TTree(self.__name+'_'+newtname+'_tree',self.__name+'_'+newtname+'_tree')
-				newtname = tname+'_'+jecmod.getName()+'__down'
+				newtname = tname+'_'+jecmod.getName()+'Down'
 				self.__tree_dict[newtname] = TTree(self.__name+'_'+newtname+'_tree',self.__name+'_'+newtname+'_tree')
 	#Set up the tree by adding the branches
 	def __initialize_trees__(self) :
@@ -194,17 +214,6 @@ class MC_Process(Process) :
 	#list of constant reweights
 	__const_reweights_ttrees = ['weight']
 	__const_reweights_ptrees = ['cs_weight']
-	#list of systematic reweights
-	__simple_systematics = [('sf_pileup','pileup_weight',False),
-							('sf_trig_eff','trig_eff_weight',True),
-							('sf_lep_ID','lep_ID_weight',True),
-							('sf_lep_iso','lep_iso_weight',True),
-							('sf_btag_eff','btag_eff_weight',False),
-							('sf_mu_R','ren_scale_weight',False),
-							('sf_mu_F','fact_scale_weight',False),
-							('sf_scale_comb','comb_scale_weight',False),
-							('sf_pdf_alphas','pdfas_weight',False),
-							(None,'lumi',True)]
 	#list of event reweighting factors for qqbar and gg distributions
 	__qqbar_rws = ['wqs1','wqs2','wqa0','wqa1','wqa2','wqs1_opp','wqs2_opp','wqa0_opp','wqa1_opp','wqa2_opp']
 	__gg_rws = ['wg1','wg2','wg3','wg4','wg1_opp','wg2_opp','wg3_opp','wg4_opp']
@@ -213,6 +222,17 @@ class MC_Process(Process) :
 	def __init__(self,name,fit_parameter_tuple,include_JEC,include_sss) :
 		#Set up the Process for this MC_Process
 		Process.__init__(self,name,fit_parameter_tuple)
+		#define the simple systematics
+		self.__simple_systematics = [('sf_pileup','pileup_weight',False),
+							('sf_trig_eff',self.getLepType()+'_trig_eff_weight_'+self.getTrigReg(),True),
+							('sf_lep_ID',self.getLepType()+'_ID_weight',True),
+							('sf_lep_iso',self.getLepType()+'_iso_weight',True),
+							('sf_btag_eff','btag_eff_weight',False),
+							('sf_mu_R','ren_scale_weight',False),
+							('sf_mu_F','fact_scale_weight',False),
+							('sf_scale_comb','comb_scale_weight',False),
+							('sf_pdf_alphas','pdfas_weight',False),
+							(None,'lumi',True)]
 		self.__add_fit_parameter_templates__()
 		if include_JEC :
 			self.__make_JEC_modifier_list__(self.__JEC_names)
@@ -226,10 +246,16 @@ class MC_Process(Process) :
 		self.__add_JEC_trees__()
 
 	#Public functions
-	def buildWeightsums(self,channelcharge,ptfn) :
+	def buildWeightsums(self,channelcharge,ptfn,n_procs) :
 		procs = []
 		pipe_ends = []
 		for t in self.getTemplateList() :
+			if len(procs)>=n_procs :
+				for item in pipe_ends :
+					item[1].setWeightsumDict(item[0].recv())
+				for p in procs :
+					p.join()
+				procs = []; pipe_ends = []
 			p_wsd, c_wsd = multiprocessing.Pipe()
 			p = multiprocessing.Process(target=buildWeightsumsParallel, args=(c_wsd,t,copy.deepcopy(self.getTreeDict()),copy.deepcopy(self.getBranchDict()),
 																			  self.__const_reweights_ptrees,self.getSSModifierList(),channelcharge,ptfn))
@@ -241,13 +267,19 @@ class MC_Process(Process) :
 		for p in procs :
 			p.join()
 
-	def buildTemplates(self,channelcharge,ptfn) :
+	def buildTemplates(self,channelcharge,ptfn,n_procs) :
 		print '	Building templates for process %s...'%(self.getName())
 		procs = []
 		pipe_ends = []
 		#for each template
 		tlist = self.getTemplateList()
 		for i in range(len(tlist)) :
+			if len(procs)>=n_procs :
+				for item in pipe_ends :
+					item[1].setHistos(item[0].recv())
+				for p in procs :
+					p.join()
+				procs = []; pipe_ends = []
 			t = tlist[i]
 			p_hl, c_hl = multiprocessing.Pipe()
 			#make the JEC append
@@ -349,13 +381,17 @@ class QCD_Process(Process) :
 		self.__initialize_trees__()
 
 	#get the MC-subtracted numbers of data events in the sideband regions for each necessary template type
-	def getEventNumbers(self,charge,ptfn) :
+	def getEventNumbers(self,charge,ptfn,n_procs) :
 		print '		Getting event numbers for process '+self.getName()
 		manager = multiprocessing.Manager()
 		eventnumberssubdict = {}; eventnumberssubdict_p = manager.dict()
 		#for each template holding only data events
 		procs = []
 		for t in self.getTemplateList() :
+			if len(procs)>=n_procs :
+				for p in procs :
+					p.join()
+				procs = []
 			p = multiprocessing.Process(target=self.__getEventNumbersParallel__, args=(t,charge,ptfn,eventnumberssubdict_p))
 			p.start()
 			procs.append(p)
@@ -377,7 +413,7 @@ class QCD_Process(Process) :
 		#from the data events in the distribution
 		eventnumberssubdict[t.getType()] = t.getEventNumbers(charge,None,self.getTreeDict(),self.getBranchDict(),None,None,eventnumberssubdict[t.getType()],
 															 self.getBaseFunction(),self.getFitParameterList(),1.0,ptfn)
-		#print '				After adding data: %s'%(eventnumberssubdict[t.getType()]) #DEBUG
+		print '				After adding data: %s'%(eventnumberssubdict[t.getType()]) #DEBUG
 		#subtract off the MC events in each MC process
 		for mcp in self.__mc_process_list :
 			print '			Subtracting numbers from MC Process '+mcp.getName()+' for template '+t.getName()
@@ -390,17 +426,23 @@ class QCD_Process(Process) :
 																  mcp.getSSModifierList(),eventnumberssubdict[t.getType()],
 																  '('+self.getBaseFunction()+')*('+mcp.getBaseFunction()+')',
 							  									  self.getFitParameterList()+mcp.getFitParameterList(),-1.0,ptfn)
-			#print '				After subtracting %s MC: %s'%(t.getName(),eventnumberssubdict[t.getType()]) #DEBUG
+			print '				After subtracting %s MC: %s'%(mcp.getName(),eventnumberssubdict[t.getType()]) #DEBUG
 
 
 	#build the templates from the data and MC events
-	def buildTemplates(self,channelcharge,ptfn) :
+	def buildTemplates(self,channelcharge,ptfn,n_procs) :
 		print '	Building templates for QCD process %s...'%(self.getName())
 		procs = []
 		pipe_ends = []
 		#for each template
 		tlist = self.getTemplateList()
 		for i in range(len(tlist)) :
+			if len(procs)>=n_procs :
+				for item in pipe_ends :
+					item[1].setHistos(item[0].recv())
+				for p in procs :
+					p.join()
+				procs = []; pipe_ends = []
 			t = tlist[i]
 			p_hl, c_hl = multiprocessing.Pipe()
 			p = multiprocessing.Process(target=self.__buildQCDTemplatesParallel__, args=(c_hl,t,channelcharge,ptfn,i==len(tlist)-1))
@@ -463,13 +505,19 @@ class Data_Process(Process) :
 		#Initialize the tree
 		Process.__initialize_trees__(self)
 
-	def buildTemplates(self,channelcharge,ptfn) :
+	def buildTemplates(self,channelcharge,ptfn,n_procs) :
 		print '	Building templates for process %s...'%(self.getName())
 		procs = []
 		pipe_ends = []
 		#for each template
 		tlist = self.getTemplateList()
 		for i in range(len(tlist)) :
+			if len(procs)>=n_procs :
+				for item in pipe_ends :
+					item[1].setHistos(item[0].recv())
+				for p in procs :
+					p.join()
+				procs = []; pipe_ends = []
 			t = tlist[i]
 			p_hl, c_hl = multiprocessing.Pipe()
 			p = multiprocessing.Process(target=buildTemplatesParallel,args=(c_hl,t,channelcharge,copy.deepcopy(self.getTreeDict()['sig']),
@@ -490,6 +538,137 @@ class Data_Process(Process) :
 		s = 'Data_Process: (Process: %s)'%(self.__str__())
 		return s
 
+#Fit_Process subclass
+class Fit_Process(Process) :
+
+	#JEC names
+	__JEC_names = ['JES','JER']
+	#list of constant reweights
+	__const_reweights_ttrees = ['weight']
+	__const_reweights_ptrees = ['cs_weight']
+	#list of event reweighting factors for qqbar and gg distributions
+	__qqbar_rws = ['wqs1','wqs2','wqa0','wqa1','wqa2','wqs1_opp','wqs2_opp','wqa0_opp','wqa1_opp','wqa2_opp']
+	__gg_rws = ['wg1','wg2','wg3','wg4','wg1_opp','wg2_opp','wg3_opp','wg4_opp']
+	__other_rws	= ['wega','wegc']
+
+	def __init__(self,name,include_JEC,include_sss) :
+		#Set up the Process for this MC_Process
+		Process.__init__(self,name,None)
+		#define the simple systematics
+		self.__simple_systematics = [('sf_pileup','pileup_weight',False),
+							('sf_trig_eff',self.getLepType()+'_trig_eff_weight_'+self.getTrigReg(),True),
+							('sf_lep_ID',self.getLepType()+'_ID_weight',True),
+							('sf_lep_iso',self.getLepType()+'_iso_weight',True),
+							('sf_btag_eff','btag_eff_weight',False),
+							('sf_mu_R','ren_scale_weight',False),
+							('sf_mu_F','fact_scale_weight',False),
+							('sf_scale_comb','comb_scale_weight',False),
+							('sf_pdf_alphas','pdfas_weight',False),
+							(None,'lumi',True)]
+		if include_JEC :
+			self.__make_JEC_modifier_list__(self.__JEC_names)
+			self.__add_JEC_templates__()
+		self.__make_ss_modifier_list__(self.__simple_systematics)
+		if include_sss :
+			self.__add_ss_templates__()
+		#Add to the list of branches
+		self.__add_to_dict_of_branches__()
+		#Add the JEC trees to the dictionary
+		self.__add_JEC_trees__()
+
+	def buildTemplates(self,channelcharge,ptfn,n_procs) :
+		print '	Building templates for fit process %s...'%(self.getName())
+		procs = []
+		pipe_ends = []
+		#for each template
+		tlist = self.getTemplateList()
+		for i in range(len(tlist)) :
+			if len(procs)>=n_procs :
+				for item in pipe_ends :
+					item[1].setHistos(item[0].recv())
+				for p in procs :
+					p.join()
+				procs = []; pipe_ends = []
+			t = tlist[i]
+			p_hl, c_hl = multiprocessing.Pipe()
+			#make the JEC append
+			JEC_append = ''
+			mod = t.getModifier()
+			if mod!=None and mod.isJECModifier() :
+				JEC_append = '_'+t.getType()
+			p = multiprocessing.Process(target=buildTemplatesParallel, args=(c_hl,t,channelcharge,copy.deepcopy(self.getTreeDict()['sig'+JEC_append]),
+																			 copy.deepcopy(self.getBranchDict()),self.getConstantReweightsPTreesList(),
+								 											 self.getSSModifierList(),self.getBaseFunction(),self.getFitParameterList(),ptfn,
+								 											 i==len(tlist)-1))
+			p.start()
+			procs.append(p)
+			pipe_ends.append((p_hl,t))
+		for item in pipe_ends :
+			item[1].setHistos(item[0].recv())
+		for p in procs :
+			p.join()
+
+	#Getters/Setters/Adders
+	def getConstantReweightsTTreesList(self) :
+		return self.__const_reweights_ttrees
+	def getConstantReweightsPTreesList(self) :
+		return self.__const_reweights_ptrees
+	def getPDFTTreeName(self) :
+		return self.__PDF_branch_name
+	def getPDFBranchLength(self) :
+		return self.__PDF_set_length
+
+	#private class methods
+	#add to the branch dict based on a bunch of reweights and observables
+	def __add_to_dict_of_branches__(self) :
+		#constant reweights
+		for i in range(len(self.__const_reweights_ttrees)) :
+			self.addBranch(Branch(self.__const_reweights_ttrees[i],self.__const_reweights_ptrees[i],'f',1.0))
+		#systematic reweights
+		for i in range(len(self.__simple_systematics)) :
+			ttree_name = self.__simple_systematics[i][0]
+			ptree_name = self.__simple_systematics[i][1]
+			if self.__simple_systematics[i][2] :
+				if ttree_name!=None :
+					self.addBranch(Branch(ttree_name+'_BtoF',ptree_name+'_BtoF','f',1.0))
+					self.addBranch(Branch(ttree_name+'_BtoF_hi',ptree_name+'_BtoF_up','f',1.0))
+					self.addBranch(Branch(ttree_name+'_BtoF_low',ptree_name+'_BtoF_down','f',1.0))
+					self.addBranch(Branch(ttree_name+'_GH',ptree_name+'_GH','f',1.0))
+					self.addBranch(Branch(ttree_name+'_GH_hi',ptree_name+'_GH_up','f',1.0))
+					self.addBranch(Branch(ttree_name+'_GH_low',ptree_name+'_GH_down','f',1.0))
+				else :
+					self.addBranch(Branch(None,ptree_name+'_BtoF','f',1.0))
+					self.addBranch(Branch(None,ptree_name+'_BtoF_up','f',1.0))
+					self.addBranch(Branch(None,ptree_name+'_BtoF_down','f',1.0))
+					self.addBranch(Branch(None,ptree_name+'_GH','f',1.0))
+					self.addBranch(Branch(None,ptree_name+'_GH_up','f',1.0))
+					self.addBranch(Branch(None,ptree_name+'_GH_down','f',1.0))
+			else :
+				if ttree_name!=None :
+					self.addBranch(Branch(ttree_name,ptree_name,'f',1.0))
+					self.addBranch(Branch(ttree_name+'_hi',ptree_name+'_up','f',1.0))
+					self.addBranch(Branch(ttree_name+'_low',ptree_name+'_down','f',1.0))
+				else :
+					self.addBranch(Branch(None,ptree_name,'f',1.0))
+					self.addBranch(Branch(None,ptree_name+'_up','f',1.0))
+					self.addBranch(Branch(None,ptree_name+'_down','f',1.0))
+		#event reweights
+		if self.getName().find('fq')!=-1 :
+			for i in range(len(self.__qqbar_rws)) :
+				rw = self.__qqbar_rws[i]
+				self.addBranch(Branch(rw,rw,'f',1.0))	
+		elif self.getName().find('fg')!=-1 :
+			for i in range(len(self.__gg_rws)) :
+				rw = self.__gg_rws[i]
+				self.addBranch(Branch(rw,rw,'f',1.0))
+
+	def __del__(self) :
+		pass
+
+	def __str__(self) :
+		s = 'Fit_Process: (Process: %s)'%(self.__str__())
+		return s
+
 #Return the choice of base function according to process name
 def autoset_base_function(name) :
 	base_function = None
@@ -503,8 +682,30 @@ def autoset_base_function(name) :
 		base_function = fwjets_func
 	elif name == 'fqcd' :
 		base_function = fqcd_func
-	elif name == 'DATA' :
+	elif name == 'data_obs' :
 		base_function = ''
+	elif name == 'fqp0' :
+		base_function = fqp0_func
+	elif name == 'fqp1' :
+		base_function = fqp1_func
+	elif name == 'fqp2' :
+		base_function = fqp2_func
+	elif name == 'fqm0' :
+		base_function = fqm0_func
+	elif name == 'fqm1' :
+		base_function = fqm1_func
+	elif name == 'fqm2' :
+		base_function = fqm2_func
+	elif name == 'fg0' :
+		base_function = fg0_func
+	elif name == 'fg1' :
+		base_function = fg1_func
+	elif name == 'fg2' :
+		base_function = fg2_func
+	elif name == 'fg3' :
+		base_function = fg3_func
+	elif name == 'fg4' :
+		base_function = fg4_func
 	else :
 		print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
 		print '!!!!!!   WARNING, PROCESS TYPE NOT RECOGNIZED FROM NAME: '+name+'   !!!!!!'
@@ -537,5 +738,31 @@ def buildTemplatesParallel(child_histolist,t,channelcharge,thistree,bd,crws,ssrw
 	t.addTreeToTemplates(channelcharge,'sig',thistree,bd,crws,ssrws,bf,fpl,1.0,ptfn,pb)
 	child_histolist.send(t.getHistos())
 	child_histolist.close()
+
+#Automatically returns the lepton type name based on the process name
+def autoset_lepton_type_name(name) :
+	leptontypename = ''
+	if name.split('__')[0].split('_')[1].startswith('mu') :
+		leptontypename = 'mu'
+	elif name.split('__')[0].split('_')[1].startswith('el') :
+		leptontypename = 'el'
+	else :
+		print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+		print '!!!!!!   WARNING, LEPTON TYPE NOT RECOGNIZED FROM PROCESS '+name+'   !!!!!!'
+		print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+	return leptontypename
+
+#Automatically returns the trigger region based on the process name
+def autoset_trigger_region(name) :
+	trigreg = ''
+	if name.split('__')[0].split('_')[0] in ['t1','t2'] :
+		trigreg = 'b'
+	elif name.split('__')[0].split('_')[0] in ['t3'] :
+		trigreg = 'r'
+	else :
+		print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+		print '!!!!!!   WARNING, TRIGGER REGION NOT RECOGNIZED FROM PROCESS '+name+'   !!!!!!'
+		print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+	return trigreg
 
 

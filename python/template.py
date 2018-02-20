@@ -1,22 +1,82 @@
 from ROOT import TH3D, TH1D, TFile
 from array import array
+import copy
 from math import *
+
+#binning dictionary: first key = channel name, second key = "x","y", or "z"
+BINS = {'t1_elplus_SR':{'x':array('d',[-1.00000,-0.75000,-0.50000,-0.25000,0.00000,0.25000,0.50000,0.75000,1.00000]),
+'y':array('d',[0.00000,0.16864,0.35377,0.60000]),
+'z':array('d',[500.00000,3000.00000])},
+'t1_muplus_WJets_CR':{'x':array('d',[-1.00000,-0.75000,-0.50000,-0.25000,0.00000,0.25000,0.50000,0.75000,1.00000]),
+'y':array('d',[0.00000,0.13706,0.30875,0.60000]),
+'z':array('d',[500.00000,3000.00000])},
+'t1_elminus_SR':{'x':array('d',[-1.00000,-0.75000,-0.50000,-0.25000,0.00000,0.25000,0.50000,0.75000,1.00000]),
+'y':array('d',[0.00000,0.17003,0.33829,0.60000]),
+'z':array('d',[500.00000,3000.00000])},
+'t1_muplus_SR':{'x':array('d',[-1.00000,-0.75000,-0.50000,-0.25000,0.00000,0.25000,0.50000,0.75000,1.00000]),
+'y':array('d',[0.00000,0.13030,0.30785,0.60000]),
+'z':array('d',[500.00000,3000.00000])},
+'t1_elplus_WJets_CR':{'x':array('d',[-1.00000,-0.75000,-0.50000,-0.25000,0.00000,0.25000,0.50000,0.75000,1.00000]),
+'y':array('d',[0.00000,0.14230,0.35644,0.60000]),
+'z':array('d',[500.00000,3000.00000])},
+'t1_elminus_WJets_CR':{'x':array('d',[-1.00000,-0.75000,-0.50000,-0.25000,0.00000,0.25000,0.50000,0.75000,1.00000]),
+'y':array('d',[0.00000,0.14625,0.31357,0.60000]),
+'z':array('d',[500.00000,3000.00000])},
+'t1_muminus_SR':{'x':array('d',[-1.00000,-0.75000,-0.50000,-0.25000,0.00000,0.25000,0.50000,0.75000,1.00000]),
+'y':array('d',[0.00000,0.15324,0.30814,0.60000]),
+'z':array('d',[500.00000,3000.00000])},
+'t1_muminus_WJets_CR':{'x':array('d',[-1.00000,-0.75000,-0.50000,-0.25000,0.00000,0.25000,0.50000,0.75000,1.00000]),
+'y':array('d',[0.00000,0.13939,0.30110,0.60000]),
+'z':array('d',[500.00000,3000.00000])},
+'t2_muplus_WJets_CR':{'x':array('d',[-1.00000,-0.85714,-0.71429,-0.57143,-0.42857,-0.28571,-0.14286,0.00000,0.14286,0.28571,0.42857,0.57143,0.71429,0.85714,1.00000]),
+'y':array('d',[0.00000,0.07091,0.11474,0.14652,0.18781,0.21799,0.24784,0.31771,0.40000]),
+'z':array('d',[300.00000,2300.00000])},
+'t2_elminus_WJets_CR':{'x':array('d',[-1.00000,-0.85714,-0.71429,-0.57143,-0.42857,-0.28571,-0.14286,0.00000,0.14286,0.28571,0.42857,0.57143,0.71429,0.85714,1.00000]),
+'y':array('d',[0.00000,0.09406,0.13573,0.17199,0.20903,0.24973,0.30305,0.37694,0.40000]),
+'z':array('d',[300.00000,2300.00000])},
+'t2_muplus_SR':{'x':array('d',[-1.00000,-0.85714,-0.71429,-0.57143,-0.42857,-0.28571,-0.14286,0.00000,0.14286,0.28571,0.42857,0.57143,0.71429,0.85714,1.00000]),
+'y':array('d',[0.00000,0.03626,0.07458,0.11004,0.14555,0.18790,0.24134,0.30371,0.40000]),
+'z':array('d',[300.00000,2300.00000])},
+'t2_muminus_WJets_CR':{'x':array('d',[-1.00000,-0.85714,-0.71429,-0.57143,-0.42857,-0.28571,-0.14286,0.00000,0.14286,0.28571,0.42857,0.57143,0.71429,0.85714,1.00000]),
+'y':array('d',[0.00000,0.07390,0.10424,0.13915,0.18314,0.23072,0.28350,0.33034,0.40000]),
+'z':array('d',[300.00000,2300.00000])},
+'t2_elminus_SR':{'x':array('d',[-1.00000,-0.85714,-0.71429,-0.57143,-0.42857,-0.28571,-0.14286,0.00000,0.14286,0.28571,0.42857,0.57143,0.71429,0.85714,1.00000]),
+'y':array('d',[0.00000,0.02095,0.06528,0.10061,0.15173,0.21084,0.26978,0.31276,0.40000]),
+'z':array('d',[300.00000,2300.00000])},
+'t2_elplus_SR':{'x':array('d',[-1.00000,-0.85714,-0.71429,-0.57143,-0.42857,-0.28571,-0.14286,0.00000,0.14286,0.28571,0.42857,0.57143,0.71429,0.85714,1.00000]),
+'y':array('d',[0.00000,0.04146,0.08171,0.11894,0.16248,0.21010,0.26052,0.32987,0.40000]),
+'z':array('d',[300.00000,2300.00000])},
+'t2_muminus_SR':{'x':array('d',[-1.00000,-0.85714,-0.71429,-0.57143,-0.42857,-0.28571,-0.14286,0.00000,0.14286,0.28571,0.42857,0.57143,0.71429,0.85714,1.00000]),
+'y':array('d',[0.00000,0.02928,0.06229,0.09681,0.12930,0.16976,0.21690,0.29217,0.40000]),
+'z':array('d',[300.00000,2300.00000])},
+'t2_elplus_WJets_CR':{'x':array('d',[-1.00000,-0.85714,-0.71429,-0.57143,-0.42857,-0.28571,-0.14286,0.00000,0.14286,0.28571,0.42857,0.57143,0.71429,0.85714,1.00000]),
+'y':array('d',[0.00000,0.08117,0.12181,0.16974,0.22103,0.25909,0.29891,0.35423,0.40000]),
+'z':array('d',[300.00000,2300.00000])},
+'t3_muplus_SR':{'x':array('d',[-1.00000,-0.90000,-0.80000,-0.70000,-0.60000,-0.50000,-0.40000,-0.30000,-0.20000,-0.10000,0.00000,0.10000,0.20000,0.30000,0.40000,0.50000,0.60000,0.70000,0.80000,0.90000,1.00000]),
+'y':array('d',[0.00000,0.00960,0.02194,0.02976,0.03853,0.04309,0.04977,0.06153,0.06731,0.30000]),
+'z':array('d',[300.00000,1500.00000])},
+'t3_muminus_SR':{'x':array('d',[-1.00000,-0.90000,-0.80000,-0.70000,-0.60000,-0.50000,-0.40000,-0.30000,-0.20000,-0.10000,0.00000,0.10000,0.20000,0.30000,0.40000,0.50000,0.60000,0.70000,0.80000,0.90000,1.00000]),
+'y':array('d',[0.00000,0.03690,0.06007,0.08072,0.10212,0.12641,0.15670,0.18743,0.23192,0.30000]),
+'z':array('d',[300.00000,1500.00000])},
+'t3_elplus_SR':{'x':array('d',[-1.00000,-0.90000,-0.80000,-0.70000,-0.60000,-0.50000,-0.40000,-0.30000,-0.20000,-0.10000,0.00000,0.10000,0.20000,0.30000,0.40000,0.50000,0.60000,0.70000,0.80000,0.90000,1.00000]),
+'y':array('d',[0.00000,0.03287,0.05527,0.08047,0.10235,0.12614,0.14559,0.18122,0.22327,0.30000]),
+'z':array('d',[300.00000,1500.00000])},
+'t3_elminus_SR':{'x':array('d',[-1.00000,-0.90000,-0.80000,-0.70000,-0.60000,-0.50000,-0.40000,-0.30000,-0.20000,-0.10000,0.00000,0.10000,0.20000,0.30000,0.40000,0.50000,0.60000,0.70000,0.80000,0.90000,1.00000]),
+'y':array('d',[0.00000,0.03522,0.05500,0.07346,0.09679,0.11921,0.14017,0.16751,0.21191,0.30000]),
+'z':array('d',[300.00000,1500.00000])},
+}
+
 
 #Template class
 class Template(object) :
-
-	#histogram limits
-	__XBINS = array('d',[-1.0,-0.8,-0.6,-0.4,-0.2,0.,0.2,0.4,0.6,0.8,1.0])
-	__YBINS = array('d',[0.,0.15,0.45,1.0])
-	__ZBINS = array('d',[750.,1000.,1250.,1500.,1750.,2000.,2500.,3000.,4000.])
 
 	def __init__(self,name,formatted_name,modifier) :
 		#A Template has a name and a formatted name
 		print '	Adding template with name '+name
 		self.__name = name
 		self.__type = 'nominal'
-		if len(name.split('__'))==4 :
-			self.__type = name.split('__')[2]+'__'+name.split('__')[3]
+		if len(name.split('__'))==3 :
+			self.__type = name.split('__')[2]
 		self.__formatted_name = formatted_name
 		#Templates have modifiers associated with them
 		self.__modifier = modifier
@@ -32,13 +92,17 @@ class Template(object) :
 								 'NBCK':{'wname':None,'sig':0.,'qcd_a':0.,'qcd_b':0.,'qcd_c':0.},
 								 'NWJETS':{'wname':None,'sig':0.,'qcd_a':0.,'qcd_b':0.,'qcd_c':0.},
 								 'NQCD':{'wname':None,'sig':0.,'qcd_a':0.,'qcd_b':0.,'qcd_c':0.}}
+		#set the binning arrays based on the channel name
+		self._XBINS = copy.copy(BINS[self.__name.split('__')[0]]['x'])
+		self._YBINS = copy.copy(BINS[self.__name.split('__')[0]]['y'])
+		self._ZBINS = copy.copy(BINS[self.__name.split('__')[0]]['z'])
 		#QCD templates will eventually need a conversion factor
 		self.__conversion_factor = None
 		#Templates have 3D and 1D projection histograms
-		self.__histo_3D = TH3D(name,formatted_name+'; c*; |x_{F}|; M (GeV)',len(self.__XBINS)-1,self.__XBINS,len(self.__YBINS)-1,self.__YBINS,len(self.__ZBINS)-1,self.__ZBINS)
-		self.__histo_x  = TH1D(name+'_x',formatted_name+' X Projection; c*',len(self.__XBINS)-1,self.__XBINS)
-		self.__histo_y  = TH1D(name+'_y',formatted_name+' Y Projection; |x_{F}|',len(self.__YBINS)-1,self.__YBINS)
-		self.__histo_z  = TH1D(name+'_z',formatted_name+' Z Projection; M (GeV)',len(self.__ZBINS)-1,self.__ZBINS)
+		self.__histo_3D = TH3D(name,formatted_name+'; c*; |x_{F}|; M (GeV)',len(self._XBINS)-1,self._XBINS,len(self._YBINS)-1,self._YBINS,len(self._ZBINS)-1,self._ZBINS)
+		self.__histo_x  = TH1D(name+'_x',formatted_name+' X Projection; c*',len(self._XBINS)-1,self._XBINS)
+		self.__histo_y  = TH1D(name+'_y',formatted_name+' Y Projection; |x_{F}|',len(self._YBINS)-1,self._YBINS)
+		self.__histo_z  = TH1D(name+'_z',formatted_name+' Z Projection; M (GeV)',len(self._ZBINS)-1,self._ZBINS)
 		#Set the directories of the newly created histograms
 		self.__histo_3D.SetDirectory(0); self.__histo_x.SetDirectory(0); self.__histo_y.SetDirectory(0); self.__histo_z.SetDirectory(0)
 
@@ -80,7 +144,7 @@ class Template(object) :
 			for entry in range(nEntries) :
 				tree.GetEntry(entry)
 				#get event weight
-				eweight = self.__get_event_weight__(branch_dict,const_rw_name_list,ss_rw_name_list,identifier.find('qcd')!=-1)
+				eweight = self.__get_event_weight__(branch_dict,const_rw_name_list,ss_rw_name_list,(identifier.find('qcd_b')!=-1 or identifier.find('qcd_c')!=-1))
 				#for each weightsum we're making, apply the last remaining weight and then increment the value
 				for weightsumname in weightsum_names :
 					wname = self.__weightsum_dict[weightsumname]['wname']
@@ -115,26 +179,26 @@ class Template(object) :
 				tree.SetBranchAddress(branch.getPTreeName(),branch.getPTreeArray())
 			nEntries = tree.GetEntries()
 			for entry in range(nEntries) :
-				#print 'doing entry %d of %d for template with name %s'%(entry,nEntries,self.getName()) #DEBUG
+				#if entry==1 : print 'doing entry %d of %d for template with name %s'%(entry,nEntries,self.getName()) #DEBUG
 				tree.GetEntry(entry)
 				#get the event weight
-				eweight = self.__get_event_weight__(branch_dict,const_rw_name_list,ss_rw_list,ttree_identifier.find('qcd')!=-1)
+				eweight = self.__get_event_weight__(branch_dict,const_rw_name_list,ss_rw_list,(ttree_identifier.find('qcd_b')!=-1 or ttree_identifier.find('qcd_c')!=-1),entry==1)
 				eweight_opp = eweight
-				#print '	initial = %.4f'%(eweight) #DEBUG
+				#if entry==1 : print '	initial = %.4f'%(eweight) #DEBUG
 				#multiply by the function weights if necessary
 				if functionstring!=None and functionstring!='' :
 					fweight, fweight_opp = self.__get_function_weight__(branch_dict,functionstring)
 					eweight*=fweight; eweight_opp*=fweight_opp
-				#print '	after function weight = %.4f'%(eweight) #DEBUG
+				#if entry==1 : print '	after function weight = %.4f'%(eweight) #DEBUG
 				#multiply by the last +/-1 factor or whatever
 				eweight*=extra_weight; eweight_opp*=extra_weight
-				#print '	after extra weight = %.4f'%(eweight) #DEBUG
+				#if entry==1 : print '	after extra weight = %.4f'%(eweight) #DEBUG
 				#add to the event numbers
 				if channelcharge==0 or branch_dict['lep_Q'].getPTreeValue()==channelcharge:
-					event_numbers[realidentifier]+=eweight
+					event_numbers[ttree_identifier]+=eweight
 				if branch_dict['addTwice'].getPTreeValue()==1 and (channelcharge==0 or branch_dict['lep_Q'].getPTreeValue()!=channelcharge) :
-					event_numbers[realidentifier]+=eweight_opp
-				#print 'for template %s with realidentifier %s eweight for entry %d = %.6f'%(self.getName(),realidentifier,entry,eweight) #DEBUG
+					event_numbers[ttree_identifier]+=eweight_opp
+				#if entry==1 : print 'for template %s with realidentifier %s eweight for entry %d = %.6f'%(self.getName(),realidentifier,entry,eweight) #DEBUG
 			filep.Close()
 		return event_numbers
 
@@ -158,7 +222,7 @@ class Template(object) :
 #			n+=1 #DEBUG
 			tree.GetEntry(entry)
 			#get the event weight
-			eweight = self.__get_event_weight__(branch_dict,const_rw_name_list,ss_rw_list,ttree_identifier.find('qcd')!=-1)
+			eweight = self.__get_event_weight__(branch_dict,const_rw_name_list,ss_rw_list,(ttree_identifier.find('qcd_b')!=-1 or ttree_identifier.find('qcd_c')!=-1))
 #			s = 'event weight = '+str(eweight) #DEBUG
 			#multiply by the function weights
 			eweight_opp = eweight
@@ -195,9 +259,9 @@ class Template(object) :
 
 	#Fill the histograms given x, y, and z values
 	def Fill(self,x,y,z,w) :
-		inxbounds = x>=self.__XBINS[0] and x<self.__XBINS[len(self.__XBINS)-1]
-		inybounds = y>=self.__YBINS[0] and y<self.__YBINS[len(self.__YBINS)-1]
-		inzbounds = z>=self.__ZBINS[0] and z<self.__ZBINS[len(self.__ZBINS)-1]
+		inxbounds = x>=self._XBINS[0] and x<self._XBINS[len(self._XBINS)-1]
+		inybounds = y>=self._YBINS[0] and y<self._YBINS[len(self._YBINS)-1]
+		inzbounds = z>=self._ZBINS[0] and z<self._ZBINS[len(self._ZBINS)-1]
 		if inxbounds and inybounds and inzbounds :
 			self.__histo_3D.Fill(x,y,z,w)
 			self.__histo_x.Fill(x,w)
@@ -220,6 +284,24 @@ class Template(object) :
 					else :
 						newHisto.SetBinError(realbincounter,self.__histo_3D.GetBinError(k))
 				realbincounter+=1
+		#correct any zero bins not in data
+		if self.__name.find('data_obs')==-1 :
+			#get the minimum nonzero value in the histogram
+			min_nonzero_value = 1000000.
+			for k in range(nglobalbins) :
+				if not self.__histo_3D.IsBinOverflow(k) and not self.__histo_3D.IsBinUnderflow(k) :
+					cont = self.__histo_3D.GetBinContent(k)
+					if cont > 0. and cont<min_nonzero_value :
+						min_nonzero_value = cont
+			if min_nonzero_value==1000000. : min_nonzero_value=1.
+			#fill zero or less bins with (1/1000)*(minimum nonzero bin content)
+			fillervalue = 0.001 * min_nonzero_value
+			realbincounter = 1
+			for k in range(nglobalbins) :
+				if not self.__histo_3D.IsBinOverflow(k) and not self.__histo_3D.IsBinUnderflow(k) :
+					if not self.__histo_3D.GetBinContent(k) > 0. :
+						newHisto.SetBinContent(realbincounter,fillervalue)
+					realbincounter+=1
 		return newHisto
 
 	#make_from_1D_histo takes a 1D distribution and makes a template out of it!
@@ -277,7 +359,7 @@ class Template(object) :
 		self.__histo_z  = hlist[3]
 	#Private methods
 	#get the weight for this event based on reweights
-	def __get_event_weight__(self,branch_dict,const_rw_name_list,ss_rw_list,skipiso=False) :
+	def __get_event_weight__(self,branch_dict,const_rw_name_list,ss_rw_list,skipiso=False,print_ind_weights=False) :
 		eweight = 1.0
 		mod = self.__modifier
 		#constant reweights
@@ -290,20 +372,20 @@ class Template(object) :
 		if ss_rw_list!=None :
 			ss_weights = [1.0,1.0] #BtoF first, then GH
 			for ss in ss_rw_list :
-				#if isinstance(ss,str) : #DEBUG
-				#	print 'ss = %s'%(ss) #DEBUG
+			#if isinstance(ss,str) : #DEBUG
+			#	print 'ss = %s'%(ss) #DEBUG
 				ssname = ss.getName()
-				if ssname=='lep_iso_weight' and skipiso :
+				if ssname.find('_iso_weight')!=-1 and skipiso :
 					continue
 				thisValueBtoF = 1.0; thisValueGH = 1.0
 				if mod!=None and mod.isSSModifier() and mod.getName()==ssname :
-					if self.__name.find('__up')!=-1 :
+					if self.__name.endswith('Up') :
 						if ss.isSplit() :
 							thisValueBtoF=branch_dict[ssname+'_BtoF_up'].getPTreeValue()
 							thisValueGH=branch_dict[ssname+'_GH_up'].getPTreeValue()
 						else :
 							thisValueBtoF = thisValueGH = branch_dict[ssname+'_up'].getPTreeValue()
-					elif self.__name.find('__down')!=-1 :
+					elif self.__name.endswith('Down') :
 						if ss.isSplit() :
 							thisValueBtoF=branch_dict[ssname+'_BtoF_down'].getPTreeValue()
 							thisValueGH=branch_dict[ssname+'_GH_down'].getPTreeValue()
@@ -323,7 +405,8 @@ class Template(object) :
 		if branch_dict['addTwice'].getPTreeValue() == 1 :
 			eweight*=0.5
 		#s+='final = '+str(eweight) #DEBUG
-		#print s #DEBUG
+		#if print_ind_weights : #DEBUG
+		#	print s #DEBUG
 		return eweight
 	#return a new function string with the total event numbers and fit parameters replaced as necessary
 	def __replace_function_string__(self,ttree_identifier,function,fit_par_list) :
@@ -361,9 +444,9 @@ class Template(object) :
 			replaced = False
 			for fitpar in fit_par_list :
 				if fitpar.getName() == s :
-					if self.__type == 'par_'+fitpar.getName()+'__up' :
+					if self.__type == 'par_'+fitpar.getName()+'Up' :
 						newfunction2+='('+str(fitpar.getUpValue())+')'
-					elif self.__type == 'par_'+fitpar.getName()+'__down' :
+					elif self.__type == 'par_'+fitpar.getName()+'Down' :
 						newfunction2+='('+str(fitpar.getDownValue())+')'
 					else :
 						newfunction2+='('+str(fitpar.getNomValue())+')'

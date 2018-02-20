@@ -11,6 +11,7 @@ parser.add_option('--input', 	type='string', action='store', default='input', 	d
 parser.add_option('--on_grid', 	type='string', action='store', default='no', 		dest='on_grid',  help='Path to on_grid file holding list of files to run on')
 parser.add_option('--out_name', type='string', action='store', default='templates', dest='out_name', help='Name of output file that will have all the templates in it')
 parser.add_option('--force_build_proctrees', type='string', action='store', default='no', dest='force_rb_ptrees', help='Set to "yes" to re build process trees even if they already exist')
+parser.add_option('--n_procs', 	 type='int', action='store', default=10, dest='n_procs', help='how many processes can be allowed to run in parallel?')
 #time-saving measures for later
 parser.add_option('--sum_charges', type='string', action='store', default='no',  dest='sum_charges', help='Whether or not to integrate over the lepton charge in building templates')
 parser.add_option('--include_mu',  type='string', action='store', default='yes', dest='include_mu',  help='Whether or not to include muons in the templates')
@@ -66,10 +67,16 @@ fit_parameter_tuple = (rqqbar,rbck,rwjets,rqcd,afb,mu,d)
 #Start up the group of templates
 print 'Creating template group'
 templates = Template_Group(fit_parameter_tuple,options.out_name,options.sum_charges.lower()=='yes',options.include_mu.lower()=='yes',options.include_el.lower()=='yes',
-							topology_list,options.include_JEC.lower()=='yes',options.include_sss.lower()=='yes')
+							topology_list,options.include_JEC.lower()=='yes',options.include_sss.lower()=='yes',options.n_procs)
 print 'Done'
 #Build process trees from reconstructor trees if necessary
-if (not os.path.isfile(options.out_name+'_process_trees.root')) or options.force_rb_ptrees.lower()=='yes' :
+proc_tree_file_path = ''
+if options.on_grid.lower() == 'yes' :
+	proc_tree_file_path+='./tardir/'
+else:
+	proc_tree_file_path+='./'
+proc_tree_file_path+=options.out_name+'_process_trees.root'
+if (not os.path.isfile(proc_tree_file_path)) or options.force_rb_ptrees.lower()=='yes' :
 	#Open the input file
 	input_file_path =''
 	if options.on_grid.lower() == 'yes' :
@@ -82,7 +89,7 @@ if (not os.path.isfile(options.out_name+'_process_trees.root')) or options.force
 	input_file = open(input_file_path,'r')
 	#Read the files at the path
 	print 'Reading from files'
-	cmd = 'hadd '+options.out_name+'_process_trees.root '
+	cmd = 'hadd -f '+options.out_name+'_process_trees.root '
 	for line in input_file :
 		if not line.startswith('#') :
 			ttree_file_path = line.rstrip()
@@ -98,7 +105,7 @@ if (not os.path.isfile(options.out_name+'_process_trees.root')) or options.force
 	print 'Done'
 #Build the templates
 print 'Building data-driven QCD templates'
-templates.build_QCD_templates(options.out_name+'_process_trees.root')
+templates.build_QCD_templates(proc_tree_file_path)
 print 'Building DATA and MC-based templates'
 templates.build_templates()
 print 'Done'
