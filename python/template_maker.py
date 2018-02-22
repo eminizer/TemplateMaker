@@ -350,12 +350,13 @@ class Template_Group(object) :
 			for p in c.getProcessList() :
 				for t in p.getTemplateList() :
 					t.setWeightsumDict(copy.deepcopy(all_weightsums[cidentifier][t.getType()]))
-		#save nominal values in the 'sig' tree to the auxiliary file
+		#save nominal values for everything except QCD in the 'sig' tree to the auxiliary file
 		for cidentifier in all_weightsums.keys() :
 			for ws in all_weightsums[cidentifier]['nominal'].keys() :
-				newweightsumhist = TH1D(cidentifier+'_'+ws,cidentifier+'_'+ws,1,0.,1.)
-				newweightsumhist.Fill(0.5,all_weightsums[cidentifier]['nominal'][ws]['sig'])
-				self.__aux_obj_list.append(newweightsumhist)
+				if ws!='NQCD' :
+					newweightsumhist = TH1D(cidentifier+'_'+ws,cidentifier+'_'+ws,1,0.,1.)
+					newweightsumhist.Fill(0.5,all_weightsums[cidentifier]['nominal'][ws]['sig'])
+					self.__aux_obj_list.append(newweightsumhist)
 		print '	FINAL WEIGHTSUMS: '
 		for c in self.__channel_list :
 			cregion = c.getRegion(); ctopology = c.getTopology()
@@ -461,6 +462,16 @@ class Template_Group(object) :
 				for t in p.getTemplateList() :
 					print '		Resetting NQCD value for template %s (channel %s, process %s, template type %s'%(t.getName(),c.getName(),p.getName(),t.getType())
 					t.setNQCDValue(nqcd_values2[c.getTopology()+'_'+c.getRegion()][t.getType()])
+		#add the nominal NQCD values in each region to the auxiliary object list
+		for cidentifier in nqcd_values2.keys() :
+			if len(nqcd_values2[cidentifier].keys())<1 :
+				continue
+			#print 'Getting new histogram for cidentifier %s with keys:'%(cidentifier) #DEBUG
+			#for k in nqcd_values2[cidentifier].keys() : #DEBUG
+			#	print '	'+str(k) #DEBUG
+			newweightsumhist = TH1D(cidentifier+'_NQCD',cidentifier+'_NQCD',1,0.,1.)
+			newweightsumhist.Fill(0.5,nqcd_values2[cidentifier]['nominal'])
+			self.__aux_obj_list.append(newweightsumhist)
 
 	def __str__(self) :
 		s = 'Template_Group object:\n'
