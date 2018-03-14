@@ -12,15 +12,15 @@ CMS_lumi.extraText = "Preliminary"
 dim = 'x'
 
 #open input file
-infilep = TFile('templates_aux.root')
+infilep = TFile('../total_template_files/templates_charge_sep_all_aux.root')
 
 #lepton types names to sum over
 leptypes = ['muplus','muminus','elplus','elminus']
 
 #lists of systematics names and colors
 systematics = [('pileup_weight',kMagenta,'Pileup Weight'),
-			   #('JES',kRed+2,'Jet Energy Scale'),
-			   #('JER',kRed-7,'Jet Energy Resolution'),
+			   ('JES',kRed+2,'Jet Energy Scale'),
+			   ('JER',kRed-7,'Jet Energy Resolution'),
 			   ('trig_eff_weight',kAzure+9,'Trigger eff.'),
 			   ('lep_ID_weight',kAzure,'Lepton ID eff.'),
 			   ('lep_iso_weight',kViolet-3,'Lepton isolation eff.'),
@@ -39,7 +39,7 @@ types = ['fqq','fgg','fbck','fwjets','fqcd']
 for top in hists :
 	for reg in hists[top] :
 		for t in types :
-			if top=='t1' and t=='fqcd' :
+			if (top=='t1' or (top=='t2' and reg=='SR')) and t=='fqcd' :
 				continue
 			hists[top][reg][t]=[]
 			#get the nominal templates, starting with the first lepton type
@@ -50,14 +50,33 @@ for top in hists :
 				hists[top][reg][t][-1].Add(infilep.Get(top+'_'+leptypes[i]+'_'+reg+'__'+t+'_'+dim).Clone())
 			#Get the systematics up/down templates
 			for i in range(len(systematics)) :
+				basesysname = systematics[i][0]
+				sysnames = []
+				#some systematics change names based on channel/topology
+				if basesysname=='trig_eff_weight' :
+					for j in range(len(leptypes)) :
+						newsysname = 'mu_trig_eff_weight' if leptypes[j].startswith('mu') else 'el_trig_eff_weight'
+						newsysname+='_r' if top=='t3' else '_b'
+						sysnames.append(newsysname)
+				elif basesysname=='lep_ID_weight' :
+					for j in range(len(leptypes)) :
+						newsysname = 'mu_ID_weight' if leptypes[j].startswith('mu') else 'el_ID_weight'
+						sysnames.append(newsysname)
+				elif basesysname=='lep_iso_weight' :
+					for j in range(len(leptypes)) :
+						newsysname = 'mu_iso_weight' if leptypes[j].startswith('mu') else 'el_iso_weight'
+						sysnames.append(newsysname)
+				else :
+					for j in range(len(leptypes)) :
+						sysnames.append(basesysname)
 				#get the first lepton type
-				print 'looking for histogram with name %s'%(top+'_'+leptypes[0]+'_'+reg+'__'+t+'__'+systematics[i][0]+'__up_'+dim) #DEBUG
-				hists[top][reg][t].append(infilep.Get(top+'_'+leptypes[0]+'_'+reg+'__'+t+'__'+systematics[i][0]+'__up_'+dim).Clone())
-				hists[top][reg][t].append(infilep.Get(top+'_'+leptypes[0]+'_'+reg+'__'+t+'__'+systematics[i][0]+'__down_'+dim).Clone())
+				print 'looking for histogram with name %s'%(top+'_'+leptypes[0]+'_'+reg+'__'+t+'__'+sysnames[0]+'Up_'+dim) #DEBUG
+				hists[top][reg][t].append(infilep.Get(top+'_'+leptypes[0]+'_'+reg+'__'+t+'__'+sysnames[0]+'Up_'+dim).Clone())
+				hists[top][reg][t].append(infilep.Get(top+'_'+leptypes[0]+'_'+reg+'__'+t+'__'+sysnames[0]+'Down_'+dim).Clone())
 				#Add from the rest of the lepton types
 				for j in range(1,len(leptypes)) :
-					hists[top][reg][t][-2].Add(infilep.Get(top+'_'+leptypes[j]+'_'+reg+'__'+t+'__'+systematics[i][0]+'__up_'+dim).Clone())
-					hists[top][reg][t][-1].Add(infilep.Get(top+'_'+leptypes[j]+'_'+reg+'__'+t+'__'+systematics[i][0]+'__down_'+dim).Clone())
+					hists[top][reg][t][-2].Add(infilep.Get(top+'_'+leptypes[j]+'_'+reg+'__'+t+'__'+sysnames[j]+'Up_'+dim).Clone())
+					hists[top][reg][t][-1].Add(infilep.Get(top+'_'+leptypes[j]+'_'+reg+'__'+t+'__'+sysnames[j]+'Down_'+dim).Clone())
 
 #open the output file
 outfilep = TFile('template_comparison_plots_systematics_'+dim+'.root','recreate')

@@ -10,7 +10,7 @@ CMS_lumi.extraText = "Preliminary"
 
 #function to get a histogram from any subdirectory of the file
 def getHistFromFile(filep,histname) :
-	#print 'looking for histogram %s...'%(histname)
+	print 'looking for histogram %s...'%(histname)
 	for k in filep.GetListOfKeys() :
 		if k.GetName()==histname :
 			#print 'returning based on key %s'%(k)
@@ -19,24 +19,24 @@ def getHistFromFile(filep,histname) :
 			newhist.GetYaxis().SetTitle('Events')
 			newhist.SetStats(0)
 			return newhist
-	#print 'failed to find histogram %s'%(histname)
+	print 'failed to find histogram %s'%(histname)
 	return None
 
 
 #open input file
-infilep = TFile('templates_aux.root')
+infilep = TFile('../total_template_files/templates_charge_sep_all_aux.root')
 
 #lepton types to sum over
 leptypes = ['muplus','muminus','elplus','elminus']
 
 #histogram name stems
-noms = 		['__fqq', 				 '__fgg', 				'__fbck', '__fwjets', '__fqcd']
-afb_ups = 	['__fqq__par_Afb__up', 	 None, 					None, 	  None, 	  '__fqcd__par_Afb__up']
-afb_downs = ['__fqq__par_Afb__down', None, 					None, 	  None, 	  '__fqcd__par_Afb__down']
-d_ups = 	['__fqq__par_d__up', 	 '__fgg__par_d__up', 	None, 	  None, 	  '__fqcd__par_d__up']
-d_downs = 	['__fqq__par_d__down', 	 '__fgg__par_d__down', 	None, 	  None, 	  '__fqcd__par_d__down']
-mu_ups = 	['__fqq__par_mu__up', 	 '__fgg__par_mu__up', 	None, 	  None, 	  '__fqcd__par_mu__up']
-mu_downs = 	['__fqq__par_mu__down',  '__fgg__par_mu__down', None, 	  None, 	  '__fqcd__par_mu__down']
+noms = 		['__fqq', 			   '__fgg', 			'__fbck', '__fwjets', '__fqcd']
+afb_ups = 	['__fqq__par_AfbUp',   None, 				None, 	  None, 	  '__fqcd__par_AfbUp']
+afb_downs = ['__fqq__par_AfbDown', None, 				None, 	  None, 	  '__fqcd__par_AfbDown']
+d_ups = 	['__fqq__par_dUp', 	   '__fgg__par_dUp', 	None, 	  None, 	  '__fqcd__par_dUp']
+d_downs = 	['__fqq__par_dDown',   '__fgg__par_dDown', 	None, 	  None, 	  '__fqcd__par_dDown']
+mu_ups = 	['__fqq__par_muUp',    '__fgg__par_muUp', 	None, 	  None, 	  '__fqcd__par_muUp']
+mu_downs = 	['__fqq__par_muDown',  '__fgg__par_muDown', None, 	  None, 	  '__fqcd__par_muDown']
 allnames = [noms,afb_ups,afb_downs,d_ups,d_downs,mu_ups,mu_downs]
 colors_dists = [kRed,kBlue,kMagenta,kGreen,kYellow]
 colors_types = [0,3,3,-3,-3,-9,-9]
@@ -47,8 +47,8 @@ leg_names_types = ['nominal','Afb up','Afb down','d up','d down','#mu up','#mu d
 hists = {'t1':{'SR':[],'WJets_CR':[]},'t2':{'SR':[],'WJets_CR':[]},'t3':{'SR':[]}}
 
 #open the output file
-#outfilep = TFile('template_comparison_plots.root','recreate')
-outfilep = TFile('template_comparison_plots_error_bars.root','recreate')
+outfilep = TFile('template_comparison_plots.root','recreate')
+#outfilep = TFile('template_comparison_plots_error_bars.root','recreate')
 
 #make canvases, legends, and CMS lumi objects for each plot
 canvs 	  = {'t1':{'SR':[],'WJets_CR':[]},'t2':{'SR':[],'WJets_CR':[]},'t3':{'SR':[]}}
@@ -57,7 +57,7 @@ lumi_objs = {'t1':{'SR':[],'WJets_CR':[]},'t2':{'SR':[],'WJets_CR':[]},'t3':{'SR
 for top in hists :
 	for reg in hists[top] :
 		for nom in noms :
-			if top=='t1' and nom=='__fqcd' :
+			if (top=='t1' or (top=='t2' and reg=='SR')) and nom=='__fqcd' :
 				continue
 			name = top+'_'+reg+'_'+nom.lstrip('__')+'_canv'
 			canvs[top][reg].append(TCanvas(name,name,1100,900))
@@ -69,7 +69,7 @@ for top in hists :
 	for reg in hists[top] :
 		#for each of the plot types
 		for i in range(len(noms)) :
-			if top=='t1' and noms[i]=='__fqcd' :
+			if (top=='t1' or (top=='t2' and reg=='SR')) and noms[i]=='__fqcd' :
 				continue
 			thishistlist = hists[top][reg]
 			thishistlist.append([])
@@ -94,7 +94,7 @@ for top in hists :
 	for reg in hists[top] :
 		#for each type of histogram
 		for i in range(len(leg_names_dists)) :
-			if top=='t1' and noms[i]=='__fqcd' :
+			if (top=='t1' or (top=='t2' and reg=='SR')) and noms[i]=='__fqcd' :
 				continue
 			thishistlist = thishistlist = hists[top][reg]
 			histj = 0
@@ -123,11 +123,11 @@ for top in hists :
 					thismax = newmax
 			hists[top][reg][i][0].GetYaxis().SetRangeUser(0.,1.1*thismax)
 			canvs[top][reg][i].cd()
-		#	hists[top][reg][i][0].Draw('HIST')
-			hists[top][reg][i][0].Draw('E')
+			hists[top][reg][i][0].Draw('HIST')
+		#	hists[top][reg][i][0].Draw('E')
 			for j in range(1,len(hists[top][reg][i])) :
-		#		hists[top][reg][i][j].Draw('SAME HIST')
-				hists[top][reg][i][j].Draw('SAME E')
+				hists[top][reg][i][j].Draw('SAME HIST')
+		#		hists[top][reg][i][j].Draw('SAME E')
 			legs[top][reg][i].Draw()
 			lumi_objs[top][reg].append(CMS_lumi.CMS_lumi(canvs[top][reg][i], iPeriod, 0))
 

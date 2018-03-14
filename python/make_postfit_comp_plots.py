@@ -8,13 +8,15 @@ from template import Template
 gROOT.SetBatch()
 
 #dictionary of the process names and their drawing colors
-procs = ['fwjets','fbck','fg0','fqm0','fqp0'] #this is ordered to always stack the MC histograms in the same way
-proc_colors = {'fwjets':kGreen,
+procs = ['fqcd','fwjets','fbck','fg0','fqm0','fqp0'] #this is ordered to always stack the MC histograms in the same way
+proc_colors = {'fqcd':kYellow,
+				'fwjets':kGreen,
 				'fbck':kMagenta,
 		 		'fg0':kBlue,
 		 		'fqm0':kRed+2,
 		 		'fqp0':kRed+2}
-proc_leg_names = {'fwjets':'W+Jets',
+proc_leg_names = {'fqcd':'QCD',
+				  'fwjets':'W+Jets',
 				  'fbck':'Single top/DY Jets',
 				  'fg0':'gg #rightarrow t#bar{t}',
 				  'fqp0':'q#bar{q} #rightarrow t#bar{t}'}
@@ -201,7 +203,7 @@ class Plot(object) :
 		self._MC_err_resid.GetYaxis().SetTitleOffset(0.25)
 		self._MC_err_resid.GetXaxis().SetTitleSize((0.75/0.25)*self._MC_err_resid.GetXaxis().GetTitleSize())
 		self._MC_err_resid.GetYaxis().SetTitleSize((0.75/0.25)*self._MC_err_resid.GetYaxis().GetTitleSize())
-		self._MC_err_resid.GetYaxis().SetRangeUser(0.1,1.9)
+		self._MC_err_resid.GetYaxis().SetRangeUser(0.7,1.3)
 		self._MC_err_resid.GetYaxis().SetNdivisions(504)
 		self._canv.Update()
 		#plot the CMS_Lumi lines on the canvases
