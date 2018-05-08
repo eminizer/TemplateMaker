@@ -8,22 +8,36 @@ from template import Template
 gROOT.SetBatch()
 
 #dictionary of the process names and their drawing colors
-procs = ['fqcd','fwjets','fbck','fg0','fqm0','fqp0'] #this is ordered to always stack the MC histograms in the same way
+procs = ['fqcd','fwjets','fbck','fg0','fg1','fg2','fg3','fg4','fqm0','fqm1','fqm2','fqp0','fqp1','fqp2'] #this is ordered to always stack the MC histograms in the same way
+prefit_procs = ['fqcd','fwjets','fbck','fgg','fqq']
 proc_colors = {'fqcd':kYellow,
 				'fwjets':kGreen,
 				'fbck':kMagenta,
+		 		'fgg':kBlue,
 		 		'fg0':kBlue,
+		 		'fg1':kBlue,
+		 		'fg2':kBlue,
+		 		'fg3':kBlue,
+		 		'fg4':kBlue,
+		 		'fqq':kRed+2,
 		 		'fqm0':kRed+2,
-		 		'fqp0':kRed+2}
+		 		'fqm1':kRed+2,
+		 		'fqm2':kRed+2,
+		 		'fqp0':kRed+2,
+		 		'fqp1':kRed+2,
+		 		'fqp2':kRed+2}
 proc_leg_names = {'fqcd':'QCD',
 				  'fwjets':'W+Jets',
 				  'fbck':'Single top/DY Jets',
 				  'fg0':'gg #rightarrow t#bar{t}',
-				  'fqp0':'q#bar{q} #rightarrow t#bar{t}'}
+				  'fgg':'gg #rightarrow t#bar{t}',
+				  'fqp0':'q#bar{q} #rightarrow t#bar{t}',
+				  'fqq':'q#bar{q} #rightarrow t#bar{t}'}
 
 parser = OptionParser()
-parser.add_option('--tfilename',   type='string', action='store', dest='tfilename')
-parser.add_option('--cfilename',   type='string', action='store', dest='cfilename')
+parser.add_option('-M','--mode',  type='choice', action='store', dest='mode', choices=['prefit','postfit'])
+parser.add_option('--tfilename',   type='string', action='store', default=None, dest='tfilename')
+parser.add_option('--cfilename',   type='string', action='store', default=None, dest='cfilename')
 parser.add_option('--outfilename', type='string', action='store', dest='outfilename')
 (options, args) = parser.parse_args()
 
@@ -87,6 +101,7 @@ class Plot(object) :
 		elif self._lPos==2 :
 			x2 = 0.7
 		self._leg = TLegend(x2-legwidth,y2-legheight,x2,y2)
+		self._lumi_obj = None
 
 	def addMChisto(self,h,pname) :
 		#add the histogram to the stack
@@ -207,7 +222,7 @@ class Plot(object) :
 		self._MC_err_resid.GetYaxis().SetNdivisions(504)
 		self._canv.Update()
 		#plot the CMS_Lumi lines on the canvases
-		all_lumi_objs.append(CMS_lumi.CMS_lumi(self._histo_pad, iPeriod, self._iPos))
+		self._lumi_obj=CMS_lumi.CMS_lumi(self._histo_pad, iPeriod, self._iPos)
 		return self._canv
 
 
@@ -284,25 +299,28 @@ class PlotGroup(object) :
 		#first get the 1D input data graph from the initial template file and copy it into a 1D histogram like in the MC processes
 		newname = self._channame+'__data_obs'
 		newdatatemp = Template(newname+'__POSTFIT',newname+'__POSTFIT',None)
-		#initial_templates_file = TFile(options.tfilename)
-		#data1Dhisto = initial_templates_file.Get(newname).Clone()
-		#data1Dhisto.SetDirectory(0)
-		#initial_templates_file.Close()
-		combine_filep = TFile.Open(options.cfilename)
-		data_graph = combine_filep.Get('shapes_fit_s/%s/data'%(self._channame))
-		data1Dhisto = self._processes[0].getHisto1D().Clone()
-		data1Dhisto.SetDirectory(0)
-		data1Dhisto.Reset()
-#		print '		ngraphpoints=%d data1Dhisto: nbins=%d, integral before filling=%.2f'%(data_graph.GetN(),data1Dhisto.GetSize()-2,data1Dhisto.Integral()) #DEBUG
-		for i in range(data_graph.GetN()) :
-			px = array('d',[0.]); py = array('d',[0.])
-			data_graph.GetPoint(i,px,py)
-			err = data_graph.GetErrorY(i)
-#			if i==350 or i==475 : #DEBUG
-#				print '		bin %d in data has px=%d, py=%.4f, err=%.4f'%(i,px[0],py[0],err) #DEBUG
-			data1Dhisto.Fill(px[0],py[0])
-			data1Dhisto.SetBinError(data1Dhisto.FindFixBin(px[0]),err)
-		combine_filep.Close()
+		data1Dhisto=None
+		if options.mode=='postfit' :
+			combine_filep = TFile.Open(options.cfilename)
+			data_graph = combine_filep.Get('shapes_fit_s/%s/data'%(self._channame))
+			data1Dhisto = self._processes[0].getHisto1D().Clone()
+			data1Dhisto.SetDirectory(0)
+			data1Dhisto.Reset()
+#			print '		ngraphpoints=%d data1Dhisto: nbins=%d, integral before filling=%.2f'%(data_graph.GetN(),data1Dhisto.GetSize()-2,data1Dhisto.Integral()) #DEBUG
+			for i in range(data_graph.GetN()) :
+				px = array('d',[0.]); py = array('d',[0.])
+				data_graph.GetPoint(i,px,py)
+				err = data_graph.GetErrorY(i)
+#				if i==350 or i==475 : #DEBUG
+#					print '		bin %d in data has px=%d, py=%.4f, err=%.4f'%(i,px[0],py[0],err) #DEBUG
+				data1Dhisto.Fill(px[0],py[0])
+				data1Dhisto.SetBinError(data1Dhisto.FindFixBin(px[0]),err)
+			combine_filep.Close()
+		elif options.mode=='prefit' :
+			initial_templates_file = TFile(options.tfilename)
+			data1Dhisto = initial_templates_file.Get(newname).Clone()
+			data1Dhisto.SetDirectory(0)
+			initial_templates_file.Close()
 		newdatatemp.make_from_1D_histo(data1Dhisto)
 		self._data_histo_x=newdatatemp.getHistoX()
 		self._data_histo_y=newdatatemp.getHistoY()
@@ -337,32 +355,55 @@ class PlotGroup(object) :
 #dict of all PlotGroups (keys = channel names, values = PlotGroup object)
 all_plot_groups = {}
 
-#initialize channels based on reading the input file from Combine
-#Open the input file with the postfit shapes from Combine
-combine_filep = TFile.Open(options.cfilename)
-#cd to the directory with fit results
-gDirectory.cd('shapes_fit_s')
-#each key in this directory's name is a channel name
-print 'Setting up plot groups...'
-for k1 in gDirectory.GetListOfKeys() :
-	channel_name = k1.GetName()
-	print '	Adding channel with name %s'%(channel_name)
-	##skip the control region
-	#if channel_name.find('WJets_CR')!=-1 :
-	#	continue
-	#initialize a plot group for this channel
-	all_plot_groups[channel_name] = PlotGroup(channel_name)
-	#cd to this channel's subdirectory
-	combine_filep.cd('shapes_fit_s/%s'%(channel_name))
-	#find the keys in this directory that are process names
-	for procname in procs :
-		for k2 in gDirectory.GetListOfKeys() :
-			if not k2.GetName()==procname :
+if options.mode=='postfit' :
+	#initialize channels based on reading the input file from Combine
+	#Open the input file with the postfit shapes from Combine
+	combine_filep = TFile.Open(options.cfilename)
+	#cd to the directory with fit results
+	gDirectory.cd('shapes_fit_s')
+	#each key in this directory's name is a channel name
+	print 'Setting up plot groups...'
+	for k1 in gDirectory.GetListOfKeys() :
+		channel_name = k1.GetName()
+		print '	Adding channel with name %s'%(channel_name)
+		##skip the control region
+		#if channel_name.find('WJets_CR')!=-1 :
+		#	continue
+		#initialize a plot group for this channel
+		all_plot_groups[channel_name] = PlotGroup(channel_name)
+		#cd to this channel's subdirectory
+		combine_filep.cd('shapes_fit_s/%s'%(channel_name))
+		#find the keys in this directory that are process names
+		for procname in procs :
+			for k2 in gDirectory.GetListOfKeys() :
+				if not k2.GetName()==procname :
+					continue
+				#add processes to the PlotGroup
+				print '		Adding process with name %s'%(k2.GetName())
+				all_plot_groups[channel_name].addProcess(k2.GetName(),gDirectory.Get(k2.GetName()))
+	combine_filep.Close()
+elif options.mode=='prefit' :
+	#initialize channels hardcoded
+	all_channel_names = ['t1_muplus_SR','t1_muminus_SR','t1_elplus_SR','t1_elminus_SR',
+						 't1_muplus_WJets_CR','t1_muminus_WJets_CR','t1_elplus_WJets_CR','t1_elminus_WJets_CR',
+						 't2_muplus_SR','t2_muminus_SR','t2_elplus_SR','t2_elminus_SR',
+						 't2_muplus_WJets_CR','t2_muminus_WJets_CR','t2_elplus_WJets_CR','t2_elminus_WJets_CR',
+						 't3_muplus_SR','t3_muminus_SR','t3_elplus_SR','t3_elminus_SR',]
+	#open the template file to get the 1D histograms
+	template_filep = TFile.Open(options.tfilename)
+	print 'Setting up plot groups...'
+	#loop over the channel names
+	for channel_name in all_channel_names :
+		print '	Adding channel with name %s'%(channel_name)
+		#initialize a plot group for this channel
+		all_plot_groups[channel_name] = PlotGroup(channel_name)
+		for procname in prefit_procs :
+			if (channel_name.startswith('t1') or (channel_name.startswith('t2') and channel_name.find('SR')!=-1)) and procname=='fqcd' :
 				continue
 			#add processes to the PlotGroup
-			print '		Adding process with name %s'%(k2.GetName())
-			all_plot_groups[channel_name].addProcess(k2.GetName(),gDirectory.Get(k2.GetName()))
-combine_filep.Close()
+			print '		Adding process with name %s'%(procname)
+			all_plot_groups[channel_name].addProcess(procname,template_filep.Get(channel_name+'__'+procname))
+	template_filep.Close()
 
 #start the output file
 outfile = TFile(options.outfilename,'recreate')
@@ -389,7 +430,6 @@ for pg in all_plot_groups.values() :
 print 'Done'
 
 #plot and save all plots
-all_lumi_objs = [] #all the luminosity objects so we don't lose them
 print 'Plotting on canvases...'
 for pg in all_plot_groups.values() :
 	print '	in channel %s'%(pg.getName())

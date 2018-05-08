@@ -1,5 +1,19 @@
 from ROOT import *
 import CMS_lumi, tdrstyle
+from datetime import date
+from optparse import OptionParser
+
+# COMMAND LINE OPTIONS
+parser = OptionParser()
+parser.add_option('--template_file',  metavar='F', type='string', action='store', 
+                              dest='templatefile',  help='which template auxiliary file to pull from?')
+parser.add_option('--outtag', metavar='F', type='string', action='store', 
+                              default='', 
+                              dest='outtag') ## name for output file
+parser.add_option('-M','--mode', type='choice', action='store', dest='mode', choices=['points','lines'], 
+							  default='lines',
+							  help='Plot as "lines" or as "points" with error bars?')
+(options, args) = parser.parse_args()
 
 #TDR plot style stuff
 gROOT.SetBatch()
@@ -24,7 +38,7 @@ def getHistFromFile(filep,histname) :
 
 
 #open input file
-infilep = TFile('../total_template_files/templates_charge_sep_all_aux.root')
+infilep = TFile(options.templatefile)
 
 #lepton types to sum over
 leptypes = ['muplus','muminus','elplus','elminus']
@@ -47,7 +61,11 @@ leg_names_types = ['nominal','Afb up','Afb down','d up','d down','#mu up','#mu d
 hists = {'t1':{'SR':[],'WJets_CR':[]},'t2':{'SR':[],'WJets_CR':[]},'t3':{'SR':[]}}
 
 #open the output file
-outfilep = TFile('template_comparison_plots.root','recreate')
+outname = 'template_comparison_plots_'+options.mode+'_'+str(date.today())
+if options.outtag!='' :
+	outname+='_'+options.outtag
+outname+='.root'
+outfilep = TFile(outname,'recreate')
 #outfilep = TFile('template_comparison_plots_error_bars.root','recreate')
 
 #make canvases, legends, and CMS lumi objects for each plot
@@ -79,14 +97,15 @@ for top in hists :
 			for k in range(1,len(leptypes)) :
 				newname = top+'_'+leptypes[k]+'_'+reg+noms[i]+'_x'
 				thishistlist[i][0].Add(getHistFromFile(infilep,newname).Clone())
-			#also get the other histograms in the first channel
-			for j in range(1,len(allnames)) :
-				if allnames[j][i]!=None :
-					thishistlist[i].append(getHistFromFile(infilep,top+'_'+leptypes[0]+'_'+reg+allnames[j][i]+'_x').Clone())
-					#and for each of those sum up from all of the channels
-					for k in range(1,len(leptypes)) :
-						newname = top+'_'+leptypes[k]+'_'+reg+allnames[j][i]+'_x'
-						thishistlist[i][-1].Add(getHistFromFile(infilep,newname).Clone())
+			if reg!='WJets_CR' :
+				#also get the other histograms in the first channel
+				for j in range(1,len(allnames)) :
+					if allnames[j][i]!=None :
+						thishistlist[i].append(getHistFromFile(infilep,top+'_'+leptypes[0]+'_'+reg+allnames[j][i]+'_x').Clone())
+						#and for each of those sum up from all of the channels
+						for k in range(1,len(leptypes)) :
+							newname = top+'_'+leptypes[k]+'_'+reg+allnames[j][i]+'_x'
+							thishistlist[i][-1].Add(getHistFromFile(infilep,newname).Clone())
 
 #Set plot attributes and add to legend
 for top in hists :
@@ -99,7 +118,7 @@ for top in hists :
 			thishistlist = thishistlist = hists[top][reg]
 			histj = 0
 			for j in range(len(leg_names_types)) :
-				if allnames[j][i]==None :
+				if allnames[j][i]==None or (reg=='WJets_CR' and j!=0) :
 					continue
 				thishistlist[i][histj].SetLineWidth(4)
 				thishistlist[i][histj].SetMarkerStyle(21)
@@ -117,17 +136,23 @@ for top in hists :
 	for reg in hists[top] :
 		for i in range(len(hists[top][reg])) :
 			thismax = hists[top][reg][i][0].GetMaximum()
-			for j in range(1,len(hists[top][reg][i])) :
-				newmax = hists[top][reg][i][j].GetMaximum()
-				if newmax>thismax :
-					thismax = newmax
+			if reg!='WJets_CR' :
+				for j in range(1,len(hists[top][reg][i])) :
+					newmax = hists[top][reg][i][j].GetMaximum()
+					if newmax>thismax :
+						thismax = newmax
 			hists[top][reg][i][0].GetYaxis().SetRangeUser(0.,1.1*thismax)
 			canvs[top][reg][i].cd()
-			hists[top][reg][i][0].Draw('HIST')
-		#	hists[top][reg][i][0].Draw('E')
-			for j in range(1,len(hists[top][reg][i])) :
-				hists[top][reg][i][j].Draw('SAME HIST')
-		#		hists[top][reg][i][j].Draw('SAME E')
+			if options.mode=='lines' :
+				hists[top][reg][i][0].Draw('HIST')
+			elif options.mode=='points' :
+				hists[top][reg][i][0].Draw('E')
+			if reg!='WJets_CR' :
+				for j in range(1,len(hists[top][reg][i])) :
+					if options.mode=='lines' :
+						hists[top][reg][i][j].Draw('SAME HIST')
+					elif options.mode=='points' :
+						hists[top][reg][i][j].Draw('SAME E')
 			legs[top][reg][i].Draw()
 			lumi_objs[top][reg].append(CMS_lumi.CMS_lumi(canvs[top][reg][i], iPeriod, 0))
 

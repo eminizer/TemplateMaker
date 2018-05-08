@@ -232,27 +232,28 @@ class Channel(object) :
 		for i in range(len(bb_x_bins)) :
 			bb_x_bins[i] = self._xmin+i*xbinwidth
 		print 'bb_x_bins = %s'%(bb_x_bins)
-		##x_F dimension uses the Bayesian Blocks algorithm
-		#const=self._inityconst; lastlen=500; switches=0
-		#while True :
-		#	bb_y_bins = bayesian_blocks(self._y_data,const)
-		#	print '	y const = %.6f, nybins = %d'%(const,len(bb_y_bins)-1)
-		#	if len(bb_y_bins)==self._nybins+1 or switches>4 :
-		#		break
-		#	elif len(bb_y_bins)>self._nybins+1 :
-		#		if lastlen<self._nybins+1 :
-		#			switches+=1
-		#		const+=(10./(10**switches))
-		#	elif len(bb_y_bins)<self._nybins+1 :
-		#		if lastlen>self._nybins+1 :
-		#			switches+=1
-		#		const-=(10./(10**switches))
-		#	lastlen=len(bb_y_bins)
-		#bb_y_bins[0] = self._ymin; bb_y_bins[-1] = self._ymax
-		#print 'bb_y_bins = %s'%(bb_y_bins)
-		#dummy y-dimension returning bins in use
-		bb_y_bins = BINS_IN_USE[self._name]['y']
+		#x_F dimension uses the Bayesian Blocks algorithm
+		const=self._inityconst; lastlen=500; switches=0
+		while True :
+			bb_y_bins = bayesian_blocks(self._y_data,const)
+			#bb_y_bins = bayesian_blocks([self._y_data[i] for i in range(0,len(self._y_data),10)],const) #shortened bayesian blocks array to reduce runtime
+			print '	y const = %.6f, nybins = %d'%(const,len(bb_y_bins)-1)
+			if len(bb_y_bins)==self._nybins+1 or switches>4 :
+				break
+			elif len(bb_y_bins)>self._nybins+1 :
+				if lastlen<self._nybins+1 :
+					switches+=1
+				const+=(10./(10**switches))
+			elif len(bb_y_bins)<self._nybins+1 :
+				if lastlen>self._nybins+1 :
+					switches+=1
+				const-=(10./(10**switches))
+			lastlen=len(bb_y_bins)
+		bb_y_bins[0] = self._ymin; bb_y_bins[-1] = self._ymax
 		print 'bb_y_bins = %s'%(bb_y_bins)
+	#	#dummy y-dimension returning bins in use
+	#	bb_y_bins = BINS_IN_USE[self._name]['y']
+	#	print 'bb_y_bins = %s'%(bb_y_bins)
 		#M dimension returns equal-content bins
 		bb_z_bins = array('f',(self._nzbins+1)*[0.])
 		self._z_data = np.sort(self._z_data)
@@ -339,10 +340,10 @@ all_channels = {}
 #all_channels['t2_muminus_SR'] = Channel('t2_muminus_SR','eventTopology==2 && lepflavor==1 && lep_Q<0 && fullselection==1',14,-1.,1.,8,0.,0.4,3,300.,2300.,50.)
 #all_channels['t2_elplus_SR']  = Channel('t2_elplus_SR','eventTopology==2 && lepflavor==2 && lep_Q>0 && fullselection==1',14,-1.,1.,8,0.,0.4,3,300.,2300.,5.)
 #all_channels['t2_elminus_SR'] = Channel('t2_elminus_SR','eventTopology==2 && lepflavor==2 && lep_Q<0 && fullselection==1',14,-1.,1.,8,0.,0.4,3,300.,2300.,4.)
-all_channels['t3_muplus_SR']  = Channel('t3_muplus_SR','eventTopology==3 && lepflavor==1 && lep_Q>0 && fullselection==1',30,-1.,1.,12,0.,0.3,8,300.,1500.,2.)
-all_channels['t3_muminus_SR'] = Channel('t3_muminus_SR','eventTopology==3 && lepflavor==1 && lep_Q<0 && fullselection==1',30,-1.,1.,12,0.,0.3,8,300.,1500.,71.)
-all_channels['t3_elplus_SR']  = Channel('t3_elplus_SR','eventTopology==3 && lepflavor==2 && lep_Q>0 && fullselection==1',30,-1.,1.,12,0.,0.3,8,300.,1500.,58.)
-all_channels['t3_elminus_SR'] = Channel('t3_elminus_SR','eventTopology==3 && lepflavor==2 && lep_Q<0 && fullselection==1',30,-1.,1.,12,0.,0.3,8,300.,1500.,61.)
+#all_channels['t3_muplus_SR']  = Channel('t3_muplus_SR','eventTopology==3 && lepflavor==1 && lep_Q>0 && fullselection==1',30,-1.,1.,12,0.,0.3,12,300.,1500.,6.1)
+#all_channels['t3_muminus_SR'] = Channel('t3_muminus_SR','eventTopology==3 && lepflavor==1 && lep_Q<0 && fullselection==1',30,-1.,1.,12,0.,0.3,12,300.,1500.,6.1)
+#all_channels['t3_elplus_SR']  = Channel('t3_elplus_SR','eventTopology==3 && lepflavor==2 && lep_Q>0 && fullselection==1',30,-1.,1.,12,0.,0.3,12,300.,1500.,110.)
+all_channels['t3_elminus_SR'] = Channel('t3_elminus_SR','eventTopology==3 && lepflavor==2 && lep_Q<0 && fullselection==1',30,-1.,1.,12,0.,0.3,12,300.,1500.,6.7)#118.)
 #charge summed
 #all_channels['t1_mu_SR']  = Channel('t1_mu_SR','eventTopology==1 && lepflavor==1 && fullselection==1',8,-1.,1.,3,0.,0.6,1,500.,3000.,100.,45.)
 #all_channels['t1_el_SR']  = Channel('t1_el_SR','eventTopology==1 && lepflavor==2 && fullselection==1',8,-1.,1.,3,0.,0.6,1,500.,3000.,45.,35.)
