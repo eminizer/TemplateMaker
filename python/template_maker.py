@@ -388,43 +388,27 @@ class Template_Group(object) :
 			for p in c.getProcessList() :
 				if p.isQCDProcess() :
 					event_numbers[c.getName()] = p.getEventNumbers(charge,self.__ptree_filename,self.__n_procs)
-		#Sum the event numbers per topology/region/lepton type/template type (i.e. sum over lepton charge)
-		event_numbers2 = {}
-		for c in self.__channel_list :
-			ctopology = c.getTopology(); cleptype = c.getLepType(); cregion = c.getRegion()
-			cidentifier = ctopology+'_'+cleptype+'_'+cregion
-			if not cidentifier in event_numbers2.keys() :
-				event_numbers2[cidentifier] = {}
-			for p in c.getProcessList() :
-				if p.isQCDProcess() :
-					for t in p.getTemplateList() :
-						ttype = t.getType()
-						if not ttype in event_numbers2[cidentifier].keys() :
-							event_numbers2[cidentifier][ttype] = {'qcd_a':0.,'qcd_b':0.}
-						event_numbers2[cidentifier][ttype]['qcd_a']+=event_numbers[c.getName()][ttype]['qcd_a']
-						event_numbers2[cidentifier][ttype]['qcd_b']+=event_numbers[c.getName()][ttype]['qcd_b']
 		#Make the conversion factors dictionary per topology/region/template type
 		conv_fac_dict = {}
 		for c in self.__channel_list :
-			ctopology = c.getTopology(); cleptype = c.getLepType(); cregion = c.getRegion()
-			cidentifier = ctopology+'_'+cleptype+'_'+cregion
-			if cidentifier not in conv_fac_dict.keys() :
-				conv_fac_dict[cidentifier] = {}
+			cname = c.getName()
+			if cname not in conv_fac_dict.keys() :
+				conv_fac_dict[cname] = {}
 			for p in c.getProcessList() :
 				if not p.isQCDProcess() :
 					continue
 				for t in p.getTemplateList() :
 					ttype = t.getType()
-					if not ttype in conv_fac_dict[cidentifier].keys() :
+					if not ttype in conv_fac_dict[cname].keys() :
 						print '		Finding conversion factor for template '+t.getName()
 						#make the conversion function
-						n_qcd_a = event_numbers2[cidentifier][ttype]['qcd_a']
-						n_qcd_b = event_numbers2[cidentifier][ttype]['qcd_b']
+						n_qcd_a = event_numbers[cname][ttype]['qcd_a']
+						n_qcd_b = event_numbers[cname][ttype]['qcd_b']
 						print '			n_qcd_a=%.2f, n_qcd_b=%.2f, factor=%.5f'%(n_qcd_a,n_qcd_b,n_qcd_a/n_qcd_b)
-						conv_fac_dict[cidentifier][ttype] = n_qcd_a/n_qcd_b
+						conv_fac_dict[cname][ttype] = n_qcd_a/n_qcd_b
 				for t in p.getTemplateList() :
 					ttype = t.getType()
-					t.setConversionFactor(conv_fac_dict[cidentifier][ttype])
+					t.setConversionFactor(conv_fac_dict[cname][ttype])
 
 	def __set_NQCD_values__(self) :
 		print '	Getting and resetting total NQCD values'
