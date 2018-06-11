@@ -28,7 +28,7 @@ proc_colors = {'fqcd':kYellow,
 		 		'fqp2':kRed+2}
 proc_leg_names = {'fqcd':'QCD',
 				  'fwjets':'W+Jets',
-				  'fbck':'Single top/DY Jets',
+				  'fbck':'Other top/DY Jets',
 				  'fg0':'gg #rightarrow t#bar{t}',
 				  'fgg':'gg #rightarrow t#bar{t}',
 				  'fqp0':'q#bar{q} #rightarrow t#bar{t}',
@@ -39,6 +39,7 @@ parser.add_option('-M','--mode',  type='choice', action='store', dest='mode', ch
 parser.add_option('--tfilename',   type='string', action='store', default=None, dest='tfilename')
 parser.add_option('--cfilename',   type='string', action='store', default=None, dest='cfilename')
 parser.add_option('--outfilename', type='string', action='store', dest='outfilename')
+parser.add_option('--use_top_pt_reweighting', type='string', action='store', default='no', dest='usetopptrw')
 (options, args) = parser.parse_args()
 
 #Set some TDR options
@@ -398,11 +399,14 @@ elif options.mode=='prefit' :
 		#initialize a plot group for this channel
 		all_plot_groups[channel_name] = PlotGroup(channel_name)
 		for procname in prefit_procs :
-			if (channel_name.startswith('t1') or (channel_name.startswith('t2') and channel_name.find('SR')!=-1)) and procname=='fqcd' :
+			if channel_name.startswith('t1') and channel_name.split('_')[1].startswith('mu') and procname=='fqcd' :
 				continue
 			#add processes to the PlotGroup
 			print '		Adding process with name %s'%(procname)
-			all_plot_groups[channel_name].addProcess(procname,template_filep.Get(channel_name+'__'+procname))
+			if options.usetopptrw=='yes' :
+				all_plot_groups[channel_name].addProcess(procname,template_filep.Get(channel_name+'__'+procname+'__top_pt_re_weightUp'))
+			else :
+				all_plot_groups[channel_name].addProcess(procname,template_filep.Get(channel_name+'__'+procname))
 	template_filep.Close()
 
 #start the output file

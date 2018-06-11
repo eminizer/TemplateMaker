@@ -41,7 +41,7 @@ def getHistFromFile(filep,histname) :
 infilep = TFile(options.templatefile)
 
 #lepton types to sum over
-leptypes = ['muplus','muminus','elplus','elminus']
+leptypes = ['elplus','elminus','muplus','muminus']
 
 #histogram name stems
 noms = 		['__fqq', 			   '__fgg', 			'__fbck', '__fwjets', '__fqcd']
@@ -54,7 +54,7 @@ mu_downs = 	['__fqq__par_muDown',  '__fgg__par_muDown', None, 	  None, 	  '__fqc
 allnames = [noms,afb_ups,afb_downs,d_ups,d_downs,mu_ups,mu_downs]
 colors_dists = [kRed,kBlue,kMagenta,kGreen,kYellow]
 colors_types = [0,3,3,-3,-3,-9,-9]
-leg_names_dists = ['q#bar{q} #rightarrow t#bar{t}','gg/qg etc. #rightarrow t#bar{t}','other top background','W+Jets background','QCD background']
+leg_names_dists = ['q#bar{q} #rightarrow t#bar{t}','gg/qg etc. #rightarrow t#bar{t}','other top/Z/#gamma background','W+Jets background','QCD background']
 leg_names_types = ['nominal','Afb up','Afb down','d up','d down','#mu up','#mu down']
 
 #dictionary that will eventually hold all of the histos organized by topology and region
@@ -75,8 +75,6 @@ lumi_objs = {'t1':{'SR':[],'WJets_CR':[]},'t2':{'SR':[],'WJets_CR':[]},'t3':{'SR
 for top in hists :
 	for reg in hists[top] :
 		for nom in noms :
-			if (top=='t1' or (top=='t2' and reg=='SR')) and nom=='__fqcd' :
-				continue
 			name = top+'_'+reg+'_'+nom.lstrip('__')+'_canv'
 			canvs[top][reg].append(TCanvas(name,name,1100,900))
 			legs[top][reg].append(TLegend(0.62,0.67,0.9,0.9))
@@ -87,14 +85,14 @@ for top in hists :
 	for reg in hists[top] :
 		#for each of the plot types
 		for i in range(len(noms)) :
-			if (top=='t1' or (top=='t2' and reg=='SR')) and noms[i]=='__fqcd' :
-				continue
 			thishistlist = hists[top][reg]
 			thishistlist.append([])
 			#get the nominal histogram in the first channel
 			thishistlist[i].append(getHistFromFile(infilep,top+'_'+leptypes[0]+'_'+reg+noms[i]+'_x'))
 			#sum over the other lepton types
 			for k in range(1,len(leptypes)) :
+				if top=='t1' and leptypes[k].startswith('mu') and noms[i]=='__fqcd' :
+					continue
 				newname = top+'_'+leptypes[k]+'_'+reg+noms[i]+'_x'
 				thishistlist[i][0].Add(getHistFromFile(infilep,newname).Clone())
 			if reg!='WJets_CR' :
@@ -104,6 +102,8 @@ for top in hists :
 						thishistlist[i].append(getHistFromFile(infilep,top+'_'+leptypes[0]+'_'+reg+allnames[j][i]+'_x').Clone())
 						#and for each of those sum up from all of the channels
 						for k in range(1,len(leptypes)) :
+							if top=='t1' and leptypes[k].startswith('mu') and noms[i]=='__fqcd' :
+								continue
 							newname = top+'_'+leptypes[k]+'_'+reg+allnames[j][i]+'_x'
 							thishistlist[i][-1].Add(getHistFromFile(infilep,newname).Clone())
 
@@ -113,8 +113,6 @@ for top in hists :
 	for reg in hists[top] :
 		#for each type of histogram
 		for i in range(len(leg_names_dists)) :
-			if (top=='t1' or (top=='t2' and reg=='SR')) and noms[i]=='__fqcd' :
-				continue
 			thishistlist = thishistlist = hists[top][reg]
 			histj = 0
 			for j in range(len(leg_names_types)) :

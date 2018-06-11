@@ -46,9 +46,9 @@ class Channel(object) :
 		for mpn in self.__mc_process_names :
 			channel_plist.append(MC_Process(self.__name+'__'+mpn,fit_parameter_tuple,include_JEC,include_sss))
 		#next add the QCD processes if this channel is type-1 electrons, type-2, or type-3 events
-		if (self.__topology=='t1' and self.__lep_type=='el') or ( self.__topology in ['t2','t3'] ) :
-			for qcdpn in self.__QCD_process_names :
-				channel_plist.append(QCD_Process(self.__name+'__'+qcdpn,fit_parameter_tuple,channel_plist,include_JEC,include_sss))
+		#if (self.__topology=='t1' and self.__lep_type=='el') or ( self.__topology in ['t2','t3'] ) :
+		for qcdpn in self.__QCD_process_names :
+			channel_plist.append(QCD_Process(self.__name+'__'+qcdpn,fit_parameter_tuple,channel_plist,include_JEC,include_sss))
 		#add the DATA processes
 		for dpn in self.__data_process_names :
 			channel_plist.append(Data_Process(self.__name+'__'+dpn))

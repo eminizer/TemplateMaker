@@ -15,7 +15,7 @@ dim = 'x'
 infilep = TFile('../total_template_files/templates_charge_sep_all_aux.root')
 
 #lepton types names to sum over
-leptypes = ['muplus','muminus','elplus','elminus']
+leptypes = ['elplus','elminus','muplus','muminus']
 
 #lists of systematics names and colors
 systematics = [('pileup_weight',kMagenta,'Pileup Weight'),
@@ -25,11 +25,13 @@ systematics = [('pileup_weight',kMagenta,'Pileup Weight'),
 			   ('lep_ID_weight',kAzure,'Lepton ID eff.'),
 			   ('lep_iso_weight',kViolet-3,'Lepton isolation eff.'),
 			   ('btag_eff_weight',kMagenta-5,'b-tagging eff.'),
+			   ('top_pt_re_weight',kRed,'top p_{T} reweight'),
 			   ('lumi',kOrange-3,'Luminosity'),
 			   ('ren_scale_weight',kGreen+2,'Renormalization scale'),
 			   ('fact_scale_weight',kGreen-7,'Factorization scale'),
 			   ('comb_scale_weight',kSpring-7,'Combined #mu_{R}/#mu_{F} scale'),
-			   ('pdfas_weight',kSpring+3,'PDF/#alpha_{s} weight')]
+			   ('pdfas_weight',kSpring+3,'PDF/#alpha_{s} weight'),
+			   ]
 #dictionary of histogram lists
 #first key: topology
 #second key: region
@@ -39,14 +41,14 @@ types = ['fqq','fgg','fbck','fwjets','fqcd']
 for top in hists :
 	for reg in hists[top] :
 		for t in types :
-			if (top=='t1' or (top=='t2' and reg=='SR')) and t=='fqcd' :
-				continue
 			hists[top][reg][t]=[]
 			#get the nominal templates, starting with the first lepton type
 			print 'looking for histogram with name %s'%(top+'_'+leptypes[0]+'_'+reg+'__'+t+'_'+dim) #DEBUG
 			hists[top][reg][t].append(infilep.Get(top+'_'+leptypes[0]+'_'+reg+'__'+t+'_'+dim).Clone())
 			#add from all the lepton types
 			for i in range(1,len(leptypes)) :
+				if top=='t1' and leptypes[i].startswith('mu') and t=='fqcd' :
+						continue
 				hists[top][reg][t][-1].Add(infilep.Get(top+'_'+leptypes[i]+'_'+reg+'__'+t+'_'+dim).Clone())
 			#Get the systematics up/down templates
 			for i in range(len(systematics)) :
@@ -75,6 +77,8 @@ for top in hists :
 				hists[top][reg][t].append(infilep.Get(top+'_'+leptypes[0]+'_'+reg+'__'+t+'__'+sysnames[0]+'Down_'+dim).Clone())
 				#Add from the rest of the lepton types
 				for j in range(1,len(leptypes)) :
+					if top=='t1' and leptypes[j].startswith('mu') and t=='fqcd' :
+						continue
 					hists[top][reg][t][-2].Add(infilep.Get(top+'_'+leptypes[j]+'_'+reg+'__'+t+'__'+sysnames[j]+'Up_'+dim).Clone())
 					hists[top][reg][t][-1].Add(infilep.Get(top+'_'+leptypes[j]+'_'+reg+'__'+t+'__'+sysnames[j]+'Down_'+dim).Clone())
 
