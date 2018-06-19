@@ -275,7 +275,7 @@ class PlotGroup(object) :
 		#make new plots for each dimension
 		self._x_plot = Plot(self._channame,'x',2)
 		self._y_plot = Plot(self._channame,'y')
-		self._z_plot = Plot(self._channame,'z')
+		self._z_plot = Plot(self._channame,'z',0)
 
 	def addMCHistograms(self) :
 		#for every process
@@ -390,6 +390,8 @@ elif options.mode=='prefit' :
 						 't2_muplus_SR','t2_muminus_SR','t2_elplus_SR','t2_elminus_SR',
 						 't2_muplus_WJets_CR','t2_muminus_WJets_CR','t2_elplus_WJets_CR','t2_elminus_WJets_CR',
 						 't3_muplus_SR','t3_muminus_SR','t3_elplus_SR','t3_elminus_SR',]
+	#all_channel_names = ['t1_muplus_SR','t1_muminus_SR','t1_elplus_SR','t1_elminus_SR',
+	#					 't1_muplus_WJets_CR','t1_muminus_WJets_CR','t1_elplus_WJets_CR','t1_elminus_WJets_CR',]
 	#open the template file to get the 1D histograms
 	template_filep = TFile.Open(options.tfilename)
 	print 'Setting up plot groups...'
@@ -399,8 +401,8 @@ elif options.mode=='prefit' :
 		#initialize a plot group for this channel
 		all_plot_groups[channel_name] = PlotGroup(channel_name)
 		for procname in prefit_procs :
-			if channel_name.startswith('t1') and channel_name.split('_')[1].startswith('mu') and procname=='fqcd' :
-				continue
+			#if channel_name.startswith('t1') and channel_name.split('_')[1].startswith('mu') and procname=='fqcd' :
+			#	continue
 			#add processes to the PlotGroup
 			print '		Adding process with name %s'%(procname)
 			if options.usetopptrw=='yes' :

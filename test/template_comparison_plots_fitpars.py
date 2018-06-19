@@ -52,7 +52,7 @@ d_downs = 	['__fqq__par_dDown',   '__fgg__par_dDown', 	None, 	  None, 	  '__fqcd
 mu_ups = 	['__fqq__par_muUp',    '__fgg__par_muUp', 	None, 	  None, 	  '__fqcd__par_muUp']
 mu_downs = 	['__fqq__par_muDown',  '__fgg__par_muDown', None, 	  None, 	  '__fqcd__par_muDown']
 allnames = [noms,afb_ups,afb_downs,d_ups,d_downs,mu_ups,mu_downs]
-colors_dists = [kRed,kBlue,kMagenta,kGreen,kYellow]
+colors_dists = [kRed,kBlue,kMagenta,kGreen,kOrange]
 colors_types = [0,3,3,-3,-3,-9,-9]
 leg_names_dists = ['q#bar{q} #rightarrow t#bar{t}','gg/qg etc. #rightarrow t#bar{t}','other top/Z/#gamma background','W+Jets background','QCD background']
 leg_names_types = ['nominal','Afb up','Afb down','d up','d down','#mu up','#mu down']
@@ -121,6 +121,7 @@ for top in hists :
 				thishistlist[i][histj].SetLineWidth(4)
 				thishistlist[i][histj].SetMarkerStyle(21)
 				thishistlist[i][histj].SetFillStyle(0)
+				thishistlist[i][histj].GetYaxis().SetTitleOffset(1.3)
 				if (j-1)%2==0 :
 					thishistlist[i][histj].SetLineStyle(7)
 				elif j>0 :

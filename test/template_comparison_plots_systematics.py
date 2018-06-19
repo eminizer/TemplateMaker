@@ -12,7 +12,7 @@ CMS_lumi.extraText = "Preliminary"
 dim = 'x'
 
 #open input file
-infilep = TFile('../total_template_files/templates_charge_sep_all_aux.root')
+infilep = TFile('../total_template_files/templates_powheg_all_aux.root')
 
 #lepton types names to sum over
 leptypes = ['elplus','elminus','muplus','muminus']

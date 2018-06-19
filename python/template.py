@@ -72,9 +72,6 @@ BINS = {
 'z':array('d',[500.00000,3000.00000])},
 }
 
-
-
-
 #Template class
 class Template(object) :
 
