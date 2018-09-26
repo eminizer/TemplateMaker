@@ -95,7 +95,7 @@ class Plot(object) :
 		self._oneline.SetLineWidth(3); self._oneline.SetLineStyle(2)
 		#initialize the legend
 		legwidth = 0.25
-		legheight = 0.1+len(procs)*0.05
+		legheight = 0.1+len(procs)*0.03
 		x2 = 0.9; y2 = 0.83
 		if self._lPos==1 :
 			x2 = 0.44
@@ -390,8 +390,6 @@ elif options.mode=='prefit' :
 						 't2_muplus_SR','t2_muminus_SR','t2_elplus_SR','t2_elminus_SR',
 						 't2_muplus_WJets_CR','t2_muminus_WJets_CR','t2_elplus_WJets_CR','t2_elminus_WJets_CR',
 						 't3_muplus_SR','t3_muminus_SR','t3_elplus_SR','t3_elminus_SR',]
-	#all_channel_names = ['t1_muplus_SR','t1_muminus_SR','t1_elplus_SR','t1_elminus_SR',
-	#					 't1_muplus_WJets_CR','t1_muminus_WJets_CR','t1_elplus_WJets_CR','t1_elminus_WJets_CR',]
 	#open the template file to get the 1D histograms
 	template_filep = TFile.Open(options.tfilename)
 	print 'Setting up plot groups...'
