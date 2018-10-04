@@ -42,6 +42,7 @@ class Process(object) :
 		self.__name = name
 		self.__leptype = autoset_lepton_type_name(name)
 		self.__trig_reg = autoset_trigger_region(name)
+		self.__topology = autoset_topology(name)
 		self.__base_function = autoset_base_function(name.split('__')[1])
 		#Automatically add fit parameters from the base function
 		self.__fit_parameter_list = make_fit_parameter_list(self.__base_function,fit_parameter_tuple)
@@ -65,6 +66,8 @@ class Process(object) :
 		return self.__leptype
 	def getTrigReg(self) :
 		return self.__trig_reg
+	def getTopology(self) :
+		return self.__topology
 	def getFitParameterList(self) :
 		return self.__fit_parameter_list
 	def getFitParameterNameList(self) :
@@ -212,10 +215,10 @@ class MC_Process(Process) :
 	#JEC names
 	__JEC_names = ['JES','JER']
 	#list of constant reweights
-	#__const_reweights_ttrees = ['weight']
-	#__const_reweights_ptrees = ['cs_weight']
-	__const_reweights_ttrees = ['weight','sf_top_pt_rw_hi']
-	__const_reweights_ptrees = ['cs_weight','top_pt_re_weight']
+	__const_reweights_ttrees = ['weight']
+	__const_reweights_ptrees = ['cs_weight']
+	#__const_reweights_ttrees = ['weight','sf_top_pt_rw_hi']
+	#__const_reweights_ptrees = ['cs_weight','top_pt_re_weight']
 	#list of event reweighting factors for qqbar and gg distributions
 	__qqbar_rws = ['wqs1','wqs2','wqa0','wqa1','wqa2','wqs1_opp','wqs2_opp','wqa0_opp','wqa1_opp','wqa2_opp']
 	__gg_rws = ['wg1','wg2','wg3','wg4','wg1_opp','wg2_opp','wg3_opp','wg4_opp']
@@ -229,12 +232,12 @@ class MC_Process(Process) :
 							('sf_trig_eff',self.getLepType()+'_trig_eff_weight_'+self.getTrigReg(),True),
 							('sf_lep_ID',self.getLepType()+'_ID_weight',True),
 							('sf_lep_iso',self.getLepType()+'_iso_weight',True),
-							('sf_btag_eff','btag_eff_weight',False),
+							('sf_btag_eff','btag_eff_weight_'+self.getTrigReg(),False),
 							('sf_mu_R','ren_scale_weight',False),
 							('sf_mu_F','fact_scale_weight',False),
 							('sf_scale_comb','comb_scale_weight',False),
 							('sf_pdf_alphas','pdfas_weight',False),
-	#						('sf_top_pt_rw','top_pt_re_weight',False),
+							('sf_top_pt_rw','top_pt_re_weight',False),
 							(None,'lumi',True)]
 		self.__add_fit_parameter_templates__()
 		if include_JEC :
@@ -547,10 +550,10 @@ class Fit_Process(Process) :
 	#JEC names
 	__JEC_names = ['JES','JER']
 	#list of constant reweights
-	#__const_reweights_ttrees = ['weight']
-	#__const_reweights_ptrees = ['cs_weight']
-	__const_reweights_ttrees = ['weight','sf_top_pt_rw_hi']
-	__const_reweights_ptrees = ['cs_weight','top_pt_re_weight']
+	__const_reweights_ttrees = ['weight']
+	__const_reweights_ptrees = ['cs_weight']
+	#__const_reweights_ttrees = ['weight','sf_top_pt_rw_hi']
+	#__const_reweights_ptrees = ['cs_weight','top_pt_re_weight']
 	#list of event reweighting factors for qqbar and gg distributions
 	__qqbar_rws = ['wqs1','wqs2','wqa0','wqa1','wqa2','wqs1_opp','wqs2_opp','wqa0_opp','wqa1_opp','wqa2_opp']
 	__gg_rws = ['wg1','wg2','wg3','wg4','wg1_opp','wg2_opp','wg3_opp','wg4_opp']
@@ -564,12 +567,12 @@ class Fit_Process(Process) :
 							('sf_trig_eff',self.getLepType()+'_trig_eff_weight_'+self.getTrigReg(),True),
 							('sf_lep_ID',self.getLepType()+'_ID_weight',True),
 							('sf_lep_iso',self.getLepType()+'_iso_weight',True),
-							('sf_btag_eff','btag_eff_weight',False),
+							('sf_btag_eff','btag_eff_weight_'+self.getTrigReg(),False),
 							('sf_mu_R','ren_scale_weight',False),
 							('sf_mu_F','fact_scale_weight',False),
 							('sf_scale_comb','comb_scale_weight',False),
 							('sf_pdf_alphas','pdfas_weight',False),
-	#						('sf_top_pt_rw','top_pt_re_weight',False),
+							('sf_top_pt_rw','top_pt_re_weight',False),
 							(None,'lumi',True)]
 		if include_JEC :
 			self.__make_JEC_modifier_list__(self.__JEC_names)
@@ -770,5 +773,20 @@ def autoset_trigger_region(name) :
 		print '!!!!!!   WARNING, TRIGGER REGION NOT RECOGNIZED FROM PROCESS '+name+'   !!!!!!'
 		print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
 	return trigreg
+
+#Returns the decay topology based on the process name
+def autoset_topology(name) :
+	top = ''
+	if name.split('__')[0].split('_')[0] == 't1' :
+		top = 't1'
+	elif name.split('__')[0].split('_')[0] == 't2' :
+		top = 't2'
+	elif name.split('__')[0].split('_')[0] == 't3' :
+		top = 't3'
+	else :
+		print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+		print '!!!!!!     WARNING, topology NOT RECOGNIZED FROM PROCESS '+name+'    !!!!!!'
+		print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+	return top
 
 

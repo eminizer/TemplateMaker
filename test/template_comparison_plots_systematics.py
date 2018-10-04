@@ -68,6 +68,10 @@ for top in hists :
 					for j in range(len(leptypes)) :
 						newsysname = 'mu_iso_weight' if leptypes[j].startswith('mu') else 'el_iso_weight'
 						sysnames.append(newsysname)
+				elif basesysname=='btag_eff_weight' :
+					newsysname = basesysname + ('_r' if top=='t3' else '_b')
+					for j in range(len(leptypes)) :
+						sysnames.append(newsysname)
 				else :
 					for j in range(len(leptypes)) :
 						sysnames.append(basesysname)
@@ -97,6 +101,7 @@ for top in hists :
 			hists[top][reg][t][0].SetLineWidth(4); hists[top][reg][t][0].SetLineColor(kBlack)
 			hists[top][reg][t][0].SetTitle(''); hists[top][reg][t][0].SetStats(0)
 			hists[top][reg][t][0].GetYaxis().SetTitle('Events')
+			hists[top][reg][t][0].GetYaxis().SetTitleOffset(1.5)
 			hists[top][reg][t][0].GetXaxis().SetTitle(projtype)
 			thismax = hists[top][reg][t][0].GetMaximum()
 			for j in range(1,len(hists[top][reg][t])) :

@@ -388,7 +388,7 @@ class Template_Group(object) :
 			for p in c.getProcessList() :
 				if p.isQCDProcess() :
 					event_numbers[c.getName()] = p.getEventNumbers(charge,self.__ptree_filename,self.__n_procs)
-		#Make the conversion factors dictionary per topology/region/template type
+		#Make the conversion factors dictionary per channel/template type
 		conv_fac_dict = {}
 		for c in self.__channel_list :
 			cname = c.getName()
@@ -404,8 +404,8 @@ class Template_Group(object) :
 						#make the conversion function
 						n_qcd_a = event_numbers[cname][ttype]['qcd_a']
 						n_qcd_b = event_numbers[cname][ttype]['qcd_b']
-						print '			n_qcd_a=%.2f, n_qcd_b=%.2f, factor=%.5f'%(n_qcd_a,n_qcd_b,n_qcd_a/n_qcd_b)
-						conv_fac_dict[cname][ttype] = n_qcd_a/n_qcd_b
+						conv_fac_dict[cname][ttype] = n_qcd_a/n_qcd_b if n_qcd_b!=0. else 0.
+						print '			n_qcd_a=%.2f, n_qcd_b=%.2f, factor=%.5f'%(n_qcd_a,n_qcd_b,conv_fac_dict[cname][ttype])
 				for t in p.getTemplateList() :
 					ttype = t.getType()
 					t.setConversionFactor(conv_fac_dict[cname][ttype])
