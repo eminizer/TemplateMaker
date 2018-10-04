@@ -42,9 +42,11 @@ nuisances = [x.lower() for x in options.nuisances.split('__')] if options.nuisan
 
 ##########						Template Smoothing Function						##########
 
-def smoothTemplate(old_histo1D,name,deg,kernel,robust) :
+def smoothTemplate(old_histo1D,name,deg,kernel,robust,xrbin=1,yrbin=1) :
 	#first make a new Template object built from the old 1D histogram
 	temp = Template(name,name,None)
+	if not (xrbin==1 and yrbin==1) :
+		temp = rebin2DSlicesFromTemplate(temp,xrbin,yrbin)
 	temp.make_from_1D_histo(old_histo1D)
 	#get this template in three dimensions
 	histo3D = temp.getHisto3D()
@@ -64,14 +66,8 @@ def smoothTemplate(old_histo1D,name,deg,kernel,robust) :
 	#smooth each projection
 	smoothed_proj_histos = {}	
 	for zbin,proj_histo in proj_histos.iteritems() :
-		##find the dimensionality of the problem
-		#nglobalbins = proj_histo.GetSize()
-		#ntotalpoints = 0
-		#for i in range(nglobalbins) :
-		#	if not proj_histo.IsBinOverflow(i) and not proj_histo.IsBinUnderflow(i) :
-		#		ntotalpoints+=1
-		##make the numpy objects needed for the LOWESS algorithm
-		#x=np.zeros((2,len(bincontents)))
+		#make the numpy objects needed for the LOWESS algorithm
+		#x=np.array([nxbins*[0.],nybins*[0.]]) #range of the problem: cstar/|x_F| coordinates at bin centers
 		#y=np.zeros()
 		#x0=np.zeros()
 		##fill the objects from the projected histograms
@@ -92,11 +88,11 @@ def smoothTemplate(old_histo1D,name,deg,kernel,robust) :
 
 ##########						Comparison Plot Function						##########
 
-def makeComparisonPlots(old_histo1D,new_template,nom_histo1D,afp) :
+def makeComparisonPlots(name,old_histo1D,new_template,nom_histo1D,afp) :
 	#first we need to make template objects from the old (unsmoothed) and nominal 1D histograms
-	old_template = Template(old_histo1D.GetName(),old_histo1D.GetName(),None)
+	old_template = Template(old_histo1D.GetName(),old_histo1D.GetName(),None,name.split('_')[-1])
 	old_template.make_from_1D_histo(old_histo1D)
-	nom_template = Template(nom_histo1D.GetName(),nom_histo1D.GetName(),None)
+	nom_template = Template(nom_histo1D.GetName()+'_t',nom_histo1D.GetName()+'_t',None,name.split('_')[-1])
 	nom_template.make_from_1D_histo(nom_histo1D)
 	#cd to the auxiliary output file
 	afp.cd()
@@ -136,7 +132,7 @@ def makeComparisonPlots(old_histo1D,new_template,nom_histo1D,afp) :
 	oneline = TLine(0.,1.,ratio_histo.GetXaxis().GetNbins(),1.)
 	oneline.SetLineWidth(3); oneline.SetLineColor(kBlack)
 	#create the canvas to hold the plots
-	canv = TCanvas(n,n+' smoothing',1200,1200)
+	canv = TCanvas(name,name+' smoothing',1200,1200)
 	canv.Divide(2,2)
 	#make the x projection comparison plot
 	canv.cd(1)
@@ -161,6 +157,77 @@ def makeComparisonPlots(old_histo1D,new_template,nom_histo1D,afp) :
 	canv.Write()
 	return canv
 
+##########						Rebinning Functions						##########
+
+#given a 1D histogram, rebins and returns the resulting 1D histogram
+def rebin2DSlicesFrom1D(hist,xrbin=10,yrbin=10) :
+	#make a template object for the old 1D histogram
+	name_fine = hist.GetName()+'_fine'; name_coarse = hist.GetName()+'_coarse'
+	temp_fine = Template(name_fine,name_fine,None,binning='fine')
+	temp_fine.make_from_1D_histo(hist)
+	#get this template in three dimensions
+	histo3D_fine = temp_fine.getHisto3D()
+	#make a list of x-y projected 2D histograms, one for each Z bin
+	proj_histos = {}
+	nzbins = histo3D_fine.GetZaxis().GetNbins()
+	for i in range(1,nzbins+1) :
+		histo3D_fine.GetZaxis().SetRange(i,i)
+		#projstring='yxe' if i==1 else 'yx'
+		projstring='yx'
+		newprojhisto = histo3D_fine.Project3D(projstring)
+		proj_histos[i] = newprojhisto.Clone(newprojhisto.GetName()+'_'+str(i))
+	histo3D_fine.GetZaxis().SetRange(-1,nzbins+5)
+	#rebin each projection
+	rebinned_proj_histos = {}	
+	for zbin,proj_histo in proj_histos.iteritems() :
+		proj_histo.Rebin2D(xrbin,yrbin)
+		rebinned_proj_histos[zbin]=proj_histo
+	#build the new, coarsely-binned total template back up from its projections
+	temp_coarse = Template(name_coarse,name_coarse,None,binning='coarse')
+	histo3D_coarse = temp_coarse.getHisto3D()
+	nxbins = histo3D_coarse.GetXaxis().GetNbins()
+	nybins = histo3D_coarse.GetYaxis().GetNbins()
+	for k in range(1,nzbins+1) :
+		thisprojhisto=rebinned_proj_histos[k]
+		for i in range(1,nxbins+1) :
+			for j in range(1,nybins+1) :
+				histo3D_coarse.SetBinContent(histo3D_coarse.GetBin(i,j,k),thisprojhisto.GetBinContent(thisprojhisto.GetBin(i,j,k)))
+	temp_coarse.setHistos([histo3D_coarse,histo3D_coarse.ProjectionX(),histo3D_coarse.ProjectionY(),histo3D_coarse.ProjectionZ()])
+	return temp_coarse.convertTo1D()
+
+#given a finely-binned template, rebins and returns the resulting 1D histogram
+def rebin2DSlicesFromTemplate(temp_fine,xrbin=10,yrbin=10) :
+	#get this template in three dimensions
+	histo3D_fine = temp_fine.getHisto3D()
+	#make a list of x-y projected 2D histograms, one for each Z bin
+	proj_histos = {}
+	nzbins = histo3D_fine.GetZaxis().GetNbins()
+	for i in range(1,nzbins+1) :
+		histo3D_fine.GetZaxis().SetRange(i,i)
+		#projstring='yxe' if i==1 else 'yx'
+		projstring='yx'
+		newprojhisto = histo3D_fine.Project3D(projstring)
+		proj_histos[i] = newprojhisto.Clone(newprojhisto.GetName()+'_'+str(i))
+	histo3D_fine.GetZaxis().SetRange(-1,nzbins+5)
+	#rebin each projection
+	rebinned_proj_histos = {}	
+	for zbin,proj_histo in proj_histos.iteritems() :
+		proj_histo.Rebin2D(xrbin,yrbin)
+		rebinned_proj_histos[zbin]=proj_histo
+	#build the new, coarsely-binned total template back up from its projections
+	name_coarse = temp_fine.getName()+'_coarse'
+	temp_coarse = Template(name_coarse,name_coarse,None,binning='coarse')
+	histo3D_coarse = temp_coarse.getHisto3D()
+	nxbins = histo3D_coarse.GetXaxis().GetNbins()
+	nybins = histo3D_coarse.GetYaxis().GetNbins()
+	for k in range(1,nzbins+1) :
+		thisprojhisto=rebinned_proj_histos[k]
+		for i in range(1,nxbins+1) :
+			for j in range(1,nybins+1) :
+				histo3D_coarse.SetBinContent(histo3D_coarse.GetBin(i,j,k),thisprojhisto.GetBinContent(thisprojhisto.GetBin(i,j,k)))
+	temp_coarse.setHistos([histo3D_coarse,histo3D_coarse.ProjectionX(),histo3D_coarse.ProjectionY(),histo3D_coarse.ProjectionZ()])
+	return temp_coarse
+
 ##########								Main Script								##########
 
 #open old file
@@ -171,25 +238,35 @@ input_file = TFile.Open(options.infilepath,'r')
 
 #open new file to cd to its currently empty directory
 output_tfile_name = os.path.split(options.infilepath)[1].split('.root')[0]+'_'+options.name+'.root'
+garbage_file_name = os.path.split(options.infilepath)[1].split('.root')[0]+'_'+options.name+'_smoothing_garbage.root'
 output_aux_file_name = os.path.split(options.infilepath)[1].split('.root')[0]+'_'+options.name+'_smoothing_aux.root'
 print 'new templates will be in file %s'%(output_tfile_name)
 output_tfile = TFile.Open(output_tfile_name,'recreate')
+garbage_file = TFile.Open(garbage_file_name,'recreate')
 output_auxfile = TFile.Open(output_aux_file_name,'recreate')
-output_tfile.cd()
+garbage_file.cd()
 
 #iterate through all old histogram objects in the input file
-all_old_histos = {}; all_new_histos={}; all_new_templates={}; all_canvs = {}
+all_old_histos={}; all_new_histos={}; all_new_templates={}; all_canvs = {}
+final_real_template_histos = []
 keylist = input_file.GetListOfKeys()
 for k in keylist :
 	#get the histogram name
 	n = k.GetName()
 	#find the channel, process, and nuisance of the histogram
 	nsplit = n.split('__')
-	thischan = nsplit[0]; thisproc=''; thisnuis=''
+	thischan = nsplit[0]; thisproc=''; thisnuis=''; thisud=''
 	if len(nsplit) > 1 :
 		thisproc=nsplit[1]
 		if len(nsplit) > 2 :
 			thisnuis=nsplit[2].rstrip('Up').rstrip('Down')
+			if nsplit[2].endswith('Up') :
+				thisud='Up'
+			elif nsplit[2].endswith('Down') :
+				thisud='Down'
+			else :
+				print 'WARNING: Cannot identify whether the %s nuisance is wiggled up or down for this template; nsplit[2]=%s!!!'%(thisnuis,nsplit[2])
+				continue
 	else :
 		print 'WARNING: Cannot identify channel/process/nuisance from key %s, skipping this object entirely!!!'%(n)
 		continue
@@ -202,15 +279,32 @@ for k in keylist :
 		all_new_templates[n] = smoothTemplate(all_old_histos[n],n,options.deg,options.kernel,options.robust)
 		all_new_histos[n] = all_new_templates[n].convertTo1D()
 		#make the comparison plot and save it to the auxiliary file
-		all_canvs[n] = makeComparisonPlots(all_old_histos[n],all_new_templates[n],input_file.Get(thischan+'__'+thisproc),output_auxfile)
-		output_tfile.cd()
+		nominal_histo = (input_file.Get(thischan+'__'+thisproc)).Clone(thischan+'__'+thisproc+'__'+thisnuis+'NominalFor'+thisud)
+		rebinned_nominal_histo = rebin2DSlicesFrom1D(nominal_histo)
+		all_canvs[n+'_fine'] = makeComparisonPlots(n+'_fine',all_old_histos[n],all_new_templates[n],nominal_histo,output_auxfile)
+		all_canvs[n+'_coarse'] = makeComparisonPlots(n+'_coarse',rebin2DSlicesFrom1D(all_old_histos[n]),rebin2DSlicesFromTemplate(all_new_templates[n]),rebinned_nominal_histo,output_auxfile)
+		garbage_file.cd()
 		print '	Done.'	
-	#if this histogram is one of the new ones, put its new histogram in the output file, otherwise just put the old one	
-	all_new_histos[n].SetDirectory(output_tfile) if n in all_new_histos else all_old_histos[n].SetDirectory(output_tfile)
+		#add renamed and rebinned template to the list of final histograms
+		real_template = rebin2DSlicesFrom1D(all_new_histos[n])
+		real_template.SetName(n)
+		final_real_template_histos.append(real_template)
+	else :
+		real_template = rebin2DSlicesFrom1D(all_old_histos[n])
+		real_template.SetName(n)
+		final_real_template_histos.append(real_template)
+
+#Set the final template histogram locations
+for h in final_real_template_histos :
+	h.SetDirectory(output_tfile)
 #write and close the new files
 output_tfile.Write()
 output_tfile.Close()
+garbage_file.Write()
+garbage_file.Close()
 output_auxfile.Write()
 output_auxfile.Close()
 #close the input file
 input_file.Close()
+#delete the garbage file
+os.system('rm -rf '+garbage_file_name)

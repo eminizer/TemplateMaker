@@ -775,7 +775,7 @@ def autoset_trigger_region(name) :
 	return trigreg
 
 #Returns the decay topology based on the process name
-def autoset_trigger_region(name) :
+def autoset_topology(name) :
 	top = ''
 	if name.split('__')[0].split('_')[0] == 't1' :
 		top = 't1'
