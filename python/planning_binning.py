@@ -11,7 +11,7 @@ tdrstyle.setTDRStyle()
 outfilen = 'binning_investigation.root'
 
 #open input file
-infilep = TFile('../total_template_files/templates_powheg_iter_1_all.root')
+infilep = TFile('../total_template_files/templates_powheg_iter_2_all.root')
 
 #lepton types with fill styles
 leptypes = ['elplus',     'elminus',     'muplus',     'muminus']
