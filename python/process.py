@@ -215,10 +215,10 @@ class MC_Process(Process) :
 	#JEC names
 	__JEC_names = ['JES','JER']
 	#list of constant reweights
-	__const_reweights_ttrees = ['weight']
-	__const_reweights_ptrees = ['cs_weight']
-	#__const_reweights_ttrees = ['weight','sf_top_pt_rw_hi']
-	#__const_reweights_ptrees = ['cs_weight','top_pt_re_weight']
+	#__const_reweights_ttrees = ['weight']
+	#__const_reweights_ptrees = ['cs_weight']
+	__const_reweights_ttrees = ['weight','sf_top_pt_rw_hi']
+	__const_reweights_ptrees = ['cs_weight','top_pt_re_weight']
 	#list of event reweighting factors for qqbar and gg distributions
 	__qqbar_rws = ['wqs1','wqs2','wqa0','wqa1','wqa2','wqs1_opp','wqs2_opp','wqa0_opp','wqa1_opp','wqa2_opp']
 	__gg_rws = ['wg1','wg2','wg3','wg4','wg1_opp','wg2_opp','wg3_opp','wg4_opp']
@@ -237,7 +237,7 @@ class MC_Process(Process) :
 							('sf_mu_F','fact_scale_weight',False),
 							('sf_scale_comb','comb_scale_weight',False),
 							('sf_pdf_alphas','pdfas_weight',False),
-							('sf_top_pt_rw','top_pt_re_weight',False),
+							#('sf_top_pt_rw','top_pt_re_weight',False),
 							(None,'lumi',True)]
 		self.__add_fit_parameter_templates__()
 		if include_JEC :
@@ -550,10 +550,10 @@ class Fit_Process(Process) :
 	#JEC names
 	__JEC_names = ['JES','JER']
 	#list of constant reweights
-	__const_reweights_ttrees = ['weight']
-	__const_reweights_ptrees = ['cs_weight']
-	#__const_reweights_ttrees = ['weight','sf_top_pt_rw_hi']
-	#__const_reweights_ptrees = ['cs_weight','top_pt_re_weight']
+	#__const_reweights_ttrees = ['weight']
+	#__const_reweights_ptrees = ['cs_weight']
+	__const_reweights_ttrees = ['weight','sf_top_pt_rw_hi']
+	__const_reweights_ptrees = ['cs_weight','top_pt_re_weight']
 	#list of event reweighting factors for qqbar and gg distributions
 	__qqbar_rws = ['wqs1','wqs2','wqa0','wqa1','wqa2','wqs1_opp','wqs2_opp','wqa0_opp','wqa1_opp','wqa2_opp']
 	__gg_rws = ['wg1','wg2','wg3','wg4','wg1_opp','wg2_opp','wg3_opp','wg4_opp']
@@ -572,7 +572,7 @@ class Fit_Process(Process) :
 							('sf_mu_F','fact_scale_weight',False),
 							('sf_scale_comb','comb_scale_weight',False),
 							('sf_pdf_alphas','pdfas_weight',False),
-							('sf_top_pt_rw','top_pt_re_weight',False),
+							#('sf_top_pt_rw','top_pt_re_weight',False),
 							(None,'lumi',True)]
 		if include_JEC :
 			self.__make_JEC_modifier_list__(self.__JEC_names)

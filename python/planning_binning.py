@@ -11,7 +11,7 @@ tdrstyle.setTDRStyle()
 outfilen = 'binning_investigation.root'
 
 #open input file
-infilep = TFile('../total_template_files/templates_powheg_iter_2_all.root')
+infilep = TFile('../total_template_files/templates_powheg_iter_3_all.root')
 
 #lepton types with fill styles
 leptypes = ['elplus',     'elminus',     'muplus',     'muminus']
@@ -66,7 +66,8 @@ for t in templates :
 				allplots.append(ind_plots[t][r][lt][p]['bad_bins_z'])
 				allplots.append(ind_plots[t][r][lt][p]['bad_bins_b'])
 				#search template for zeroed bins
-				content_zeroed = this1Dhist.GetMinimum()
+				#content_zeroed = this1Dhist.GetMinimum()
+				content_zeroed = 0.00010
 				for gbin in range(1,this1Dhist.GetNbinsX()+1) :
 					if this1Dhist.GetBinContent(gbin)==content_zeroed :
 						ind_plots[t][r][lt][p]['bad_bins_b'].Fill(gbin)
