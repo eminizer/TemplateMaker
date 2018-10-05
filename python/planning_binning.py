@@ -11,7 +11,7 @@ tdrstyle.setTDRStyle()
 outfilen = 'binning_investigation.root'
 
 #open input file
-infilep = TFile('../total_template_files/templates_powheg_all.root')
+infilep = TFile('../total_template_files/templates_powheg_iter_1_all.root')
 
 #lepton types with fill styles
 leptypes = ['elplus',     'elminus',     'muplus',     'muminus']
@@ -51,7 +51,7 @@ for t in templates :
 			for p in templates[t][r][lt] :
 				ind_plots[t][r][lt][p] = {}
 				n = templates[t][r][lt][p]['name']+'_bad_bins_'
-				this1Dhist = templates[t][r][lt][p]['temp'].convertTo1D()
+				this1Dhist,gb = templates[t][r][lt][p]['temp'].convertTo1D()
 				this3Dhist = templates[t][r][lt][p]['temp'].getHisto3D()
 				ind_plots[t][r][lt][p]['bad_bins_x'] = TH1D(n+'x',n+'x',this3Dhist.GetNbinsX(),0.5,this3Dhist.GetNbinsX()+0.5)
 				ind_plots[t][r][lt][p]['bad_bins_y'] = TH1D(n+'y',n+'y',this3Dhist.GetNbinsY(),0.5,this3Dhist.GetNbinsY()+0.5)

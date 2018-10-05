@@ -7,72 +7,73 @@ import multiprocessing
 import numpy as np
 
 #global variables
-total_ttree_dir_path = '/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_1_0/src/Analysis/Reconstructor/test/total_ttree_files/'
-BINS_IN_USE = {
+#total_ttree_dir_path = '/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_1_0/src/Analysis/Reconstructor/test/total_ttree_files/'
+total_ttree_dir_path = '/uscms_data/d3/eminizer/ttbar_13TeV/CMSSW_8_1_0/src/Analysis/Reconstructor/test/old_total_ttree_files_7_23_2018/'
+BINS_IN_USE = { 
 #type-3
-'t3_muplus_SR':{'x':array('d',[-1.000000,-0.857143,-0.714286,-0.571429,-0.428571,-0.285714,-0.142857,0.000000,0.142857,0.285714,0.428571,0.571429,0.714286,0.857143,1.000000]),
-'y':array('d',[0.000000,0.038015,0.066990,0.105574,0.150000,0.300000]),
-'z':array('d',[300.000000,408.801636,459.742767,513.330078,592.586182,1500.000000])},
-'t3_muminus_SR':{'x':array('d',[-1.000000,-0.857143,-0.714286,-0.571429,-0.428571,-0.285714,-0.142857,0.000000,0.142857,0.285714,0.428571,0.571429,0.714286,0.857143,1.000000]),
-'y':array('d',[0.000000,0.039310,0.072717,0.107916,0.150000,0.300000]),
-'z':array('d',[300.000000,408.773010,459.360199,513.037048,591.875244,1500.000000])},
-'t3_elplus_SR':{'x':array('d',[-1.000000,-0.857143,-0.714286,-0.571429,-0.428571,-0.285714,-0.142857,0.000000,0.142857,0.285714,0.428571,0.571429,0.714286,0.857143,1.000000]),
-'y':array('d',[0.000000,0.041923,0.075720,0.114932,0.150000,0.300000]),
-'z':array('d',[300.000000,411.319092,462.293793,516.442749,596.000732,1500.000000])},
-'t3_elminus_SR':{'x':array('d',[-1.000000,-0.857143,-0.714286,-0.571429,-0.428571,-0.285714,-0.142857,0.000000,0.142857,0.285714,0.428571,0.571429,0.714286,0.857143,1.000000]),
-'y':array('d',[0.000000,0.038372,0.070198,0.104584,0.150000,0.300000]),
-'z':array('d',[300.000000,411.105530,461.965729,516.473572,596.381104,1500.000000])},
+'t3_muplus_SR':{'x':array('d',[-1.000000,-0.900000,-0.800000,-0.700000,-0.600000,-0.500000,-0.400000,-0.300000,-0.200000,-0.100000,0.000000,0.100000,0.200000,0.300000,0.400000,0.500000,0.600000,0.700000,0.800000,0.900000,1.000000]),
+'y':array('d',[0.000000,0.026134,0.046960,0.062639,0.078182,0.092482,0.107557,0.125000,0.600000]),
+'z':array('d',[300.000000,408.828308,459.786438,513.414795,592.749878,2000.000000])},
+'t3_muminus_SR':{'x':array('d',[-1.000000,-0.900000,-0.800000,-0.700000,-0.600000,-0.500000,-0.400000,-0.300000,-0.200000,-0.100000,0.000000,0.100000,0.200000,0.300000,0.400000,0.500000,0.600000,0.700000,0.800000,0.900000,1.000000]),
+'y':array('d',[0.000000,0.022668,0.039310,0.054528,0.069643,0.083554,0.103297,0.125000,0.600000]),
+'z':array('d',[300.000000,408.799042,459.412292,513.122925,592.005127,2000.000000])},
+'t3_elplus_SR':{'x':array('d',[-1.000000,-0.900000,-0.800000,-0.700000,-0.600000,-0.500000,-0.400000,-0.300000,-0.200000,-0.100000,0.000000,0.100000,0.200000,0.300000,0.400000,0.500000,0.600000,0.700000,0.800000,0.900000,1.000000]),
+'y':array('d',[0.000000,0.029700,0.048474,0.065726,0.080974,0.095914,0.114930,0.125000,0.600000]),
+'z':array('d',[300.000000,411.353455,462.342651,516.518982,596.201660,2000.000000])},
+'t3_elminus_SR':{'x':array('d',[-1.000000,-0.900000,-0.800000,-0.700000,-0.600000,-0.500000,-0.400000,-0.300000,-0.200000,-0.100000,0.000000,0.100000,0.200000,0.300000,0.400000,0.500000,0.600000,0.700000,0.800000,0.900000,1.000000]),
+'y':array('d',[0.000000,0.017768,0.036985,0.053670,0.070198,0.086368,0.104584,0.125000,0.600000]),
+'z':array('d',[300.000000,411.131287,462.022888,516.535889,596.562866,2000.000000])},
 #type-2 signal region
-'t2_muplus_SR':{'x':array('d',[-1.000000,-0.750000,-0.500000,-0.250000,0.000000,0.250000,0.500000,0.750000,1.000000]),
-'y':array('d',[0.000000,0.075914,0.141406,0.200000,0.400000]),
-'z':array('d',[300.000000,629.309448,789.854492,2300.000000])},
-'t2_muminus_SR':{'x':array('d',[-1.000000,-0.750000,-0.500000,-0.250000,0.000000,0.250000,0.500000,0.750000,1.000000]),
-'y':array('d',[0.000000,0.068279,0.121150,0.200000,0.400000]),
-'z':array('d',[300.000000,630.798828,789.880493,2300.000000])},
-'t2_elplus_SR':{'x':array('d',[-1.000000,-0.750000,-0.500000,-0.250000,0.000000,0.250000,0.500000,0.750000,1.000000]),
-'y':array('d',[0.000000,0.091125,0.160741,0.200000,0.400000]),
-'z':array('d',[300.000000,701.286621,925.089233,2300.000000])},
-'t2_elminus_SR':{'x':array('d',[-1.000000,-0.750000,-0.500000,-0.250000,0.000000,0.250000,0.500000,0.750000,1.000000]),
-'y':array('d',[0.000000,0.082249,0.153692,0.200000,0.400000]),
-'z':array('d',[300.000000,715.278748,941.490173,2300.000000])},
+'t2_muplus_SR':{'x':array('d',[-1.000000,-0.666667,-0.500000,-0.333333,-0.166667,0.000000,0.166667,0.333333,0.500000,0.666667,0.833333,1.000000]),
+'y':array('d',[0.000000,0.069435,0.121317,0.180000,0.600000]),
+'z':array('d',[300.000000,703.650146,3000.000000])},
+'t2_muminus_SR':{'x':array('d',[-1.000000,-0.833333,-0.666667,-0.500000,-0.333333,-0.166667,0.000000,0.166667,0.333333,0.500000,0.666667,1.000000]),
+'y':array('d',[0.000000,0.068278,0.121146,0.180000,0.600000]),
+'z':array('d',[300.000000,706.076050,3000.000000])},
+'t2_elplus_SR':{'x':array('d',[-1.000000,-0.666667,-0.500000,-0.333333,-0.166667,0.000000,0.166667,0.333333,0.500000,0.666667,0.833333,1.000000]),
+'y':array('d',[0.000000,0.060779,0.114490,0.180000,0.600000]),
+'z':array('d',[300.000000,824.591431,3000.000000])},
+'t2_elminus_SR':{'x':array('d',[-1.000000,-0.833333,-0.666667,-0.500000,-0.333333,-0.166667,0.000000,0.166667,0.333333,0.500000,0.666667,1.000000]),
+'y':array('d',[0.000000,0.082320,0.153917,0.180000,0.600000]),
+'z':array('d',[300.000000,836.557373,3000.000000])},
 #type-2 control region
-'t2_muplus_WJets_CR':{'x':array('d',[-1.000000,-0.750000,-0.500000,-0.250000,0.000000,0.250000,0.500000,0.750000,1.000000]),
-'y':array('d',[0.000000,0.095685,0.149734,0.200000,0.400000]),
-'z':array('d',[300.000000,661.861572,828.673462,2300.000000])},
-'t2_muminus_WJets_CR':{'x':array('d',[-1.000000,-0.750000,-0.500000,-0.250000,0.000000,0.250000,0.500000,0.750000,1.000000]),
-'y':array('d',[0.000000,0.075112,0.132488,0.200000,0.400000]),
-'z':array('d',[300.000000,661.726074,828.316345,2300.000000])},
-'t2_elplus_WJets_CR':{'x':array('d',[-1.000000,-0.750000,-0.500000,-0.250000,0.000000,0.250000,0.500000,0.750000,1.000000]),
-'y':array('d',[0.000000,0.096725,0.136971,0.200000,0.400000]),
-'z':array('d',[300.000000,771.098267,1001.391418,2300.000000])},
-'t2_elminus_WJets_CR':{'x':array('d',[-1.000000,-0.750000,-0.500000,-0.250000,0.000000,0.250000,0.500000,0.750000,1.000000]),
-'y':array('d',[0.000000,0.086486,0.157994,0.200000,0.400000]),
-'z':array('d',[300.000000,763.207520,1008.375122,2300.000000])},
+'t2_muplus_WJets_CR':{'x':array('d',[-1.000000,1.000000]),
+'y':array('d',[0.000000,0.070663,0.127133,0.180000,0.400000]),
+'z':array('d',[300.000000,735.255737,3000.000000])},
+'t2_muminus_WJets_CR':{'x':array('d',[-1.000000,1.000000]),
+'y':array('d',[0.000000,0.075140,0.129350,0.180000,0.400000]),
+'z':array('d',[300.000000,735.536743,3000.000000])},
+'t2_elplus_WJets_CR':{'x':array('d',[-1.000000,1.000000]),
+'y':array('d',[0.000000,0.096723,0.137037,0.180000,0.400000]),
+'z':array('d',[300.000000,879.664978,3000.000000])},
+'t2_elminus_WJets_CR':{'x':array('d',[-1.000000,1.000000]),
+'y':array('d',[0.000000,0.086436,0.144599,0.180000,0.400000]),
+'z':array('d',[300.000000,870.411987,3000.000000])},
 #type-1 signal region
-'t1_muplus_SR':{'x':array('d',[-1.000000,-0.500000,0.000000,0.500000,1.000000]),
-'y':array('d',[0.000000,0.125336,0.250000,0.600000]),
+'t1_muplus_SR':{'x':array('d',[-1.000000,-0.500000,-0.250000,0.000000,0.250000,0.500000,0.750000,1.000000]),
+'y':array('d',[0.000000,0.090509,0.200000,0.600000]),
 'z':array('d',[500.000000,3000.000000])},
-'t1_muminus_SR':{'x':array('d',[-1.000000,-0.500000,0.000000,0.500000,1.000000]),
-'y':array('d',[0.000000,0.130232,0.250000,0.600000]),
+'t1_muminus_SR':{'x':array('d',[-1.000000,-0.750000,-0.500000,-0.250000,0.000000,0.250000,0.500000,1.000000]),
+'y':array('d',[0.000000,0.111787,0.200000,0.600000]),
 'z':array('d',[500.000000,3000.000000])},
-'t1_elplus_SR':{'x':array('d',[-1.000000,-0.500000,0.000000,0.500000,1.000000]),
-'y':array('d',[0.000000,0.115303,0.250000,0.600000]),
+'t1_elplus_SR':{'x':array('d',[-1.000000,-0.500000,-0.250000,0.000000,0.250000,0.500000,0.750000,1.000000]),
+'y':array('d',[0.000000,0.115232,0.200000,0.600000]),
 'z':array('d',[500.000000,3000.000000])},
-'t1_elminus_SR':{'x':array('d',[-1.000000,-0.500000,0.000000,0.500000,1.000000]),
-'y':array('d',[0.000000,0.138664,0.250000,0.600000]),
+'t1_elminus_SR':{'x':array('d',[-1.000000,-0.750000,-0.500000,-0.250000,0.000000,0.250000,0.500000,1.000000]),
+'y':array('d',[0.000000,0.094679,0.200000,0.600000]),
 'z':array('d',[500.000000,3000.000000])},
 #type-1 control region
-'t1_muplus_WJets_CR':{'x':array('d',[-1.000000,-0.500000,0.000000,0.500000,1.000000]),
-'y':array('d',[0.000000,0.118739,0.250000,0.600000]),
+'t1_muplus_WJets_CR':{'x':array('d',[-1.000000,1.000000]),
+'y':array('d',[0.000000,0.108652,0.200000,0.600000]),
 'z':array('d',[500.000000,3000.000000])},
-'t1_muminus_WJets_CR':{'x':array('d',[-1.000000,-0.500000,0.000000,0.500000,1.000000]),
-'y':array('d',[0.000000,0.121112,0.250000,0.600000]),
+'t1_muminus_WJets_CR':{'x':array('d',[-1.000000,1.000000]),
+'y':array('d',[0.000000,0.100981,0.200000,0.600000]),
 'z':array('d',[500.000000,3000.000000])},
-'t1_elplus_WJets_CR':{'x':array('d',[-1.000000,-0.500000,0.000000,0.500000,1.000000]),
-'y':array('d',[0.000000,0.141161,0.250000,0.600000]),
+'t1_elplus_WJets_CR':{'x':array('d',[-1.000000,1.000000]),
+'y':array('d',[0.000000,0.099995,0.200000,0.600000]),
 'z':array('d',[500.000000,3000.000000])},
-'t1_elminus_WJets_CR':{'x':array('d',[-1.000000,-0.500000,0.000000,0.500000,1.000000]),
-'y':array('d',[0.000000,0.091976,0.250000,0.600000]),
+'t1_elminus_WJets_CR':{'x':array('d',[-1.000000,1.000000]),
+'y':array('d',[0.000000,0.091835,0.200000,0.600000]),
 'z':array('d',[500.000000,3000.000000])},
 }
 
@@ -171,8 +172,8 @@ class Channel(object) :
 	def __init__(self,name,cutstring,nxbins,xmin,xmax,nybins,ymin,ymax,yend,nzbins,zmin,zmax,inityconst=1.,initzconst=1.) :
 		self._name = name
 		self._cutstring = cutstring
-		#self._nxbins = nxbins
-		self._nxbins = 10*nxbins #only for this particular test of the smoothing
+		self._nxbins = nxbins
+		#self._nxbins = 10*nxbins #only for this particular test of the smoothing
 		self._xmin = xmin
 		self._xmax = xmax
 		self._nybins = nybins
@@ -245,40 +246,40 @@ class Channel(object) :
 		for i in range(len(bb_x_bins)) :
 			bb_x_bins[i] = self._xmin+i*xbinwidth
 		print 'bb_x_bins = %s'%(bb_x_bins)
-	#	#x_F dimension uses the Bayesian Blocks algorithm to a stopping point, then fills out to the last bin edge
-	#	const=self._inityconst; lastlen=500; switches=0
-	#	while True :
-	#		bb_y_bins = bayesian_blocks(self._y_data,const)
-	#		#bb_y_bins = bayesian_blocks([self._y_data[i] for i in range(0,len(self._y_data),10)],const) #shortened bayesian blocks array to reduce runtime
-	#		print '	y const = %.6f, nybins = %d'%(const,len(bb_y_bins)-1)
-	#		if len(bb_y_bins)==self._nybins+1 or switches>4 :
-	#			break
-	#		elif len(bb_y_bins)>self._nybins+1 :
-	#			if lastlen<self._nybins+1 :
-	#				switches+=1
-	#			const+=(10./(10**switches))
-	#		elif len(bb_y_bins)<self._nybins+1 :
-	#			if lastlen>self._nybins+1 :
-	#				switches+=1
-	#			const-=(10./(10**switches))
-	#		lastlen=len(bb_y_bins)
-	#	bb_y_bins[0] = self._ymin; bb_y_bins[-1] = self._ymax; bb_y_bins.append(self._yend)
-	#	print 'bb_y_bins = %s'%(bb_y_bins)
+		#x_F dimension uses the Bayesian Blocks algorithm to a stopping point, then fills out to the last bin edge
+		const=self._inityconst; lastlen=500; switches=0
+		while True :
+			bb_y_bins = bayesian_blocks(self._y_data,const)
+			#bb_y_bins = bayesian_blocks([self._y_data[i] for i in range(0,len(self._y_data),10)],const) #shortened bayesian blocks array to reduce runtime
+			print '	y const = %.6f, nybins = %d'%(const,len(bb_y_bins)-1)
+			if len(bb_y_bins)==self._nybins+1 or switches>4 :
+				break
+			elif len(bb_y_bins)>self._nybins+1 :
+				if lastlen<self._nybins+1 :
+					switches+=1
+				const+=(10./(10**switches))
+			elif len(bb_y_bins)<self._nybins+1 :
+				if lastlen>self._nybins+1 :
+					switches+=1
+				const-=(10./(10**switches))
+			lastlen=len(bb_y_bins)
+		bb_y_bins[0] = self._ymin; bb_y_bins[-1] = self._ymax; bb_y_bins.append(self._yend)
+		print 'bb_y_bins = %s'%(bb_y_bins)
 	#	#dummy y-dimension returning bins in use
 	#	bb_y_bins = BINS_IN_USE[self._name]['y']
 	#	print 'bb_y_bins = %s'%(bb_y_bins)
-		#dummy y-dimension that splits each bin in use by ten so we can smooth more finely than we bin
-		bb_y_bins = array('f',((10*(self._nybins+1))+1)*[0.])
-		k=0
-		for i in range(self._nybins+1) :
-			startval = BINS_IN_USE[self._name]['y'][i]
-			endval = BINS_IN_USE[self._name]['y'][i+1]
-			interval = (endval-startval)/10
-			for j in range(10) :
-				bb_y_bins[k] = startval+j*interval
-				k+=1
-		bb_y_bins[-1]=BINS_IN_USE[self._name]['y'][-1]
-		print 'bb_y_bins = %s'%(bb_y_bins)
+	#	#dummy y-dimension that splits each bin in use by ten so we can smooth more finely than we bin
+	#	bb_y_bins = array('f',((10*(self._nybins+1))+1)*[0.])
+	#	k=0
+	#	for i in range(self._nybins+1) :
+	#		startval = BINS_IN_USE[self._name]['y'][i]
+	#		endval = BINS_IN_USE[self._name]['y'][i+1]
+	#		interval = (endval-startval)/10
+	#		for j in range(10) :
+	#			bb_y_bins[k] = startval+j*interval
+	#			k+=1
+	#	bb_y_bins[-1]=BINS_IN_USE[self._name]['y'][-1]
+	#	print 'bb_y_bins = %s'%(bb_y_bins)
 		#M dimension returns equal-content bins
 		bb_z_bins = array('f',(self._nzbins+1)*[0.])
 		self._z_data = np.sort(self._z_data)
@@ -357,35 +358,35 @@ class Channel(object) :
 all_channels = {}
 #signal region
 #charge separated
-all_channels['t1_muplus_SR']  = Channel('t1_muplus_SR','eventTopology==1 && lepflavor==1 && lep_Q>0 && fullselection==1',8,-1.,1.,2,0.,0.25,0.6,1,500.,3000.,100.,45.)
-all_channels['t1_muminus_SR'] = Channel('t1_muminus_SR','eventTopology==1 && lepflavor==1 && lep_Q<0 && fullselection==1',8,-1.,1.,2,0.,0.25,0.6,1,500.,3000.,55.,45.)
-all_channels['t1_elplus_SR']  = Channel('t1_elplus_SR','eventTopology==1 && lepflavor==2 && lep_Q>0 && fullselection==1',8,-1.,1.,2,0.,0.25,0.6,1,500.,3000.,45.,35.)
-all_channels['t1_elminus_SR'] = Channel('t1_elminus_SR','eventTopology==1 && lepflavor==2 && lep_Q<0 && fullselection==1',8,-1.,1.,2,0.,0.25,0.6,1,500.,3000.,25.,25.)
-all_channels['t2_muplus_SR']  = Channel('t2_muplus_SR','eventTopology==2 && lepflavor==1 && lep_Q>0 && fullselection==1',14,-1.,1.,3,0.,0.2,0.4,3,300.,2300.,50.)
-all_channels['t2_muminus_SR'] = Channel('t2_muminus_SR','eventTopology==2 && lepflavor==1 && lep_Q<0 && fullselection==1',14,-1.,1.,3,0.,0.2,0.4,3,300.,2300.,50.)
-all_channels['t2_elplus_SR']  = Channel('t2_elplus_SR','eventTopology==2 && lepflavor==2 && lep_Q>0 && fullselection==1',14,-1.,1.,3,0.,0.2,0.4,3,300.,2300.,5.)
-all_channels['t2_elminus_SR'] = Channel('t2_elminus_SR','eventTopology==2 && lepflavor==2 && lep_Q<0 && fullselection==1',14,-1.,1.,3,0.,0.2,0.4,3,300.,2300.,4.)
-all_channels['t3_muplus_SR']  = Channel('t3_muplus_SR','eventTopology==3 && lepflavor==1 && lep_Q>0 && fullselection==1',20,-1.,1.,4,0.,0.15,0.3,5,300.,1500.,280.)
-all_channels['t3_muminus_SR'] = Channel('t3_muminus_SR','eventTopology==3 && lepflavor==1 && lep_Q<0 && fullselection==1',20,-1.,1.,4,0.,0.15,0.3,5,300.,1500.,260.)
-all_channels['t3_elplus_SR']  = Channel('t3_elplus_SR','eventTopology==3 && lepflavor==2 && lep_Q>0 && fullselection==1',20,-1.,1.,4,0.,0.15,0.3,5,300.,1500.,240.)
-all_channels['t3_elminus_SR'] = Channel('t3_elminus_SR','eventTopology==3 && lepflavor==2 && lep_Q<0 && fullselection==1',20,-1.,1.,4,0.,0.15,0.3,5,300.,1500.,170.)#118.)
+#all_channels['t1_muplus_SR']  = Channel('t1_muplus_SR','eventTopology==1 && lepflavor==1 && lep_Q>0 && fullselection==1',8,-1.,1.,2,0.,0.20,0.6,1,500.,3000.,100.,45.)
+#all_channels['t1_muminus_SR'] = Channel('t1_muminus_SR','eventTopology==1 && lepflavor==1 && lep_Q<0 && fullselection==1',8,-1.,1.,2,0.,0.20,0.6,1,500.,3000.,55.,45.)
+#all_channels['t1_elplus_SR']  = Channel('t1_elplus_SR','eventTopology==1 && lepflavor==2 && lep_Q>0 && fullselection==1',8,-1.,1.,2,0.,0.20,0.6,1,500.,3000.,45.,35.)
+#all_channels['t1_elminus_SR'] = Channel('t1_elminus_SR','eventTopology==1 && lepflavor==2 && lep_Q<0 && fullselection==1',8,-1.,1.,2,0.,0.20,0.6,1,500.,3000.,25.,25.)
+#all_channels['t2_muplus_SR']  = Channel('t2_muplus_SR','eventTopology==2 && lepflavor==1 && lep_Q>0 && fullselection==1',12,-1.,1.,3,0.,0.18,0.6,2,300.,3000.,50.)
+#all_channels['t2_muminus_SR'] = Channel('t2_muminus_SR','eventTopology==2 && lepflavor==1 && lep_Q<0 && fullselection==1',12,-1.,1.,3,0.,0.18,0.6,2,300.,3000.,50.)
+#all_channels['t2_elplus_SR']  = Channel('t2_elplus_SR','eventTopology==2 && lepflavor==2 && lep_Q>0 && fullselection==1',12,-1.,1.,3,0.,0.18,0.6,2,300.,3000.,5.)
+#all_channels['t2_elminus_SR'] = Channel('t2_elminus_SR','eventTopology==2 && lepflavor==2 && lep_Q<0 && fullselection==1',12,-1.,1.,3,0.,0.18,0.6,2,300.,3000.,4.)
+#all_channels['t3_muplus_SR']  = Channel('t3_muplus_SR','eventTopology==3 && lepflavor==1 && lep_Q>0 && fullselection==1',20,-1.,1.,7,0.,0.125,0.6,5,300.,2000.,10.)
+#all_channels['t3_muminus_SR'] = Channel('t3_muminus_SR','eventTopology==3 && lepflavor==1 && lep_Q<0 && fullselection==1',20,-1.,1.,7,0.,0.125,0.6,5,300.,2000.,10.)
+all_channels['t3_elplus_SR']  = Channel('t3_elplus_SR','eventTopology==3 && lepflavor==2 && lep_Q>0 && fullselection==1',20,-1.,1.,7,0.,0.125,0.6,5,300.,2000.,10.)
+#all_channels['t3_elminus_SR'] = Channel('t3_elminus_SR','eventTopology==3 && lepflavor==2 && lep_Q<0 && fullselection==1',20,-1.,1.,7,0.,0.125,0.6,5,300.,2000.,10.)#118.)
 #charge summed
 #all_channels['t1_mu_SR']  = Channel('t1_mu_SR','eventTopology==1 && lepflavor==1 && fullselection==1',8,-1.,1.,3,0.,0.6,1,500.,3000.,100.,45.)
 #all_channels['t1_el_SR']  = Channel('t1_el_SR','eventTopology==1 && lepflavor==2 && fullselection==1',8,-1.,1.,3,0.,0.6,1,500.,3000.,45.,35.)
-#all_channels['t2_mu_SR']  = Channel('t2_mu_SR','eventTopology==2 && lepflavor==1 && fullselection==1',14,-1.,1.,8,0.,0.4,3,300.,2300.,140.,5.)
-#all_channels['t2_el_SR']  = Channel('t2_el_SR','eventTopology==2 && lepflavor==2 && fullselection==1',14,-1.,1.,8,0.,0.4,3,300.,2300.,10.,10.)
+#all_channels['t2_mu_SR']  = Channel('t2_mu_SR','eventTopology==2 && lepflavor==1 && fullselection==1',14,-1.,1.,8,0.,0.4,3,300.,3000.,140.,5.)
+#all_channels['t2_el_SR']  = Channel('t2_el_SR','eventTopology==2 && lepflavor==2 && fullselection==1',14,-1.,1.,8,0.,0.4,3,300.,3000.,10.,10.)
 #all_channels['t3_mu_SR']  = Channel('t3_mu_SR','eventTopology==3 && lepflavor==1 && fullselection==1',20,-1.,1.,9,0.,0.3,6,300.,1500.,5.,2.)
 #all_channels['t3_el_SR']  = Channel('t3_el_SR','eventTopology==3 && lepflavor==2 && fullselection==1',20,-1.,1.,9,0.,0.3,6,300.,1500.,400.,50.)
 ##boosted W+Jets control regions
 #charge separated
-all_channels['t1_muplus_WJets_CR']  = Channel('t1_muplus_WJets_CR','eventTopology==1 && lepflavor==1 && lep_Q>0 && wjets_cr_selection==1',8,-1.,1.,2,0.,0.25,0.6,1,500.,3000.,35.,25.)
-all_channels['t1_muminus_WJets_CR'] = Channel('t1_muminus_WJets_CR','eventTopology==1 && lepflavor==1 && lep_Q<0 && wjets_cr_selection==1',8,-1.,1.,2,0.,0.25,0.6,1,500.,3000.,25.,15.)
-all_channels['t1_elplus_WJets_CR']  = Channel('t1_elplus_WJets_CR','eventTopology==1 && lepflavor==2 && lep_Q>0 && wjets_cr_selection==1',8,-1.,1.,2,0.,0.25,0.6,1,500.,3000.,15.,25.)
-all_channels['t1_elminus_WJets_CR'] = Channel('t1_elminus_WJets_CR','eventTopology==1 && lepflavor==2 && lep_Q<0 && wjets_cr_selection==1',8,-1.,1.,2,0.,0.25,0.6,1,500.,3000.,25.,8.)
-all_channels['t2_muplus_WJets_CR']  = Channel('t2_muplus_WJets_CR','eventTopology==2 && lepflavor==1 && lep_Q>0 && wjets_cr_selection==1',14,-1.,1.,3,0.,0.2,0.4,3,300.,2300.,50.)
-all_channels['t2_muminus_WJets_CR'] = Channel('t2_muminus_WJets_CR','eventTopology==2 && lepflavor==1 && lep_Q<0 && wjets_cr_selection==1',14,-1.,1.,3,0.,0.2,0.4,3,300.,2300.,25.)
-all_channels['t2_elplus_WJets_CR']  = Channel('t2_elplus_WJets_CR','eventTopology==2 && lepflavor==2 && lep_Q>0 && wjets_cr_selection==1',14,-1.,1.,3,0.,0.2,0.4,3,300.,2300.,5.)
-all_channels['t2_elminus_WJets_CR'] = Channel('t2_elminus_WJets_CR','eventTopology==2 && lepflavor==2 && lep_Q<0 && wjets_cr_selection==1',14,-1.,1.,3,0.,0.2,0.4,3,300.,2300.,4.)
+#all_channels['t1_muplus_WJets_CR']  = Channel('t1_muplus_WJets_CR','eventTopology==1 && lepflavor==1 && lep_Q>0 && wjets_cr_selection==1',1,-1.,1.,2,0.,0.20,0.6,1,500.,3000.,35.,25.)
+#all_channels['t1_muminus_WJets_CR'] = Channel('t1_muminus_WJets_CR','eventTopology==1 && lepflavor==1 && lep_Q<0 && wjets_cr_selection==1',1,-1.,1.,2,0.,0.20,0.6,1,500.,3000.,25.,15.)
+#all_channels['t1_elplus_WJets_CR']  = Channel('t1_elplus_WJets_CR','eventTopology==1 && lepflavor==2 && lep_Q>0 && wjets_cr_selection==1',1,-1.,1.,2,0.,0.20,0.6,1,500.,3000.,15.,25.)
+#all_channels['t1_elminus_WJets_CR'] = Channel('t1_elminus_WJets_CR','eventTopology==1 && lepflavor==2 && lep_Q<0 && wjets_cr_selection==1',1,-1.,1.,2,0.,0.20,0.6,1,500.,3000.,25.,8.)
+#all_channels['t2_muplus_WJets_CR']  = Channel('t2_muplus_WJets_CR','eventTopology==2 && lepflavor==1 && lep_Q>0 && wjets_cr_selection==1',1,-1.,1.,3,0.,0.18,0.4,2,300.,3000.,50.)
+#all_channels['t2_muminus_WJets_CR'] = Channel('t2_muminus_WJets_CR','eventTopology==2 && lepflavor==1 && lep_Q<0 && wjets_cr_selection==1',1,-1.,1.,3,0.,0.18,0.4,2,300.,3000.,25.)
+#all_channels['t2_elplus_WJets_CR']  = Channel('t2_elplus_WJets_CR','eventTopology==2 && lepflavor==2 && lep_Q>0 && wjets_cr_selection==1',1,-1.,1.,3,0.,0.18,0.4,2,300.,3000.,5.)
+#all_channels['t2_elminus_WJets_CR'] = Channel('t2_elminus_WJets_CR','eventTopology==2 && lepflavor==2 && lep_Q<0 && wjets_cr_selection==1',1,-1.,1.,3,0.,0.18,0.4,2,300.,3000.,4.)
 #charge summed
 #all_channels['t1_mu_WJets_CR']  = Channel('t1_mu_WJets_CR','eventTopology==1 && lepflavor==1 && wjets_cr_selection==1',8,-1.,1.,3,0.,0.6,4,500.,3000.,35.,25.)
 #all_channels['t1_el_WJets_CR']  = Channel('t1_el_WJets_CR','eventTopology==1 && lepflavor==2 && wjets_cr_selection==1',8,-1.,1.,3,0.,0.6,4,500.,3000.,15.,25.)
