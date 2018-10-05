@@ -284,7 +284,7 @@ class Template(object) :
 			self.__histo_z.Fill(z,w)
 
 	#convertTo1D takes a 3D distribution and makes it 1D for use with combine
-	def convertTo1D(self,bins_to_zero=None) :
+	def convertTo1D(self,bins_to_zero=None,nom_1D_histo=None) :
 		nBins = self.__histo_3D.GetNbinsX()*self.__histo_3D.GetNbinsY()*self.__histo_3D.GetNbinsZ()
 		newHisto = TH1D(self.__histo_3D.GetName(),self.__histo_3D.GetTitle(),nBins,0.,nBins-1.)
 		newHisto.SetDirectory(0)
@@ -315,7 +315,12 @@ class Template(object) :
 						newHisto.SetBinContent(realbincounter,fillervalue)
 						zeroed_bins.append(realbincounter)
 					elif not self.__histo_3D.GetBinContent(k) > 0. :
-						newHisto.SetBinContent(realbincounter,0.00010)
+						newbincont = nom_1D_histo.GetBinContent(realbincounter)
+						if self.__type.endswith('Up') : 
+							newbincont*=(1.005)
+						elif self.__type.endswith('Down') :
+							newbincont*=(0.995)
+						newHisto.SetBinContent(realbincounter,newbincont)
 						zeroed_bins.append(realbincounter)
 					realbincounter+=1
 		return newHisto,zeroed_bins

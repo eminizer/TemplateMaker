@@ -306,6 +306,7 @@ class Template_Group(object) :
 						hist_list.append(temp1D)
 			#next do all the nominal templates, making a dictionary of the bins to zero for each process along the way
 			bins_to_zero = {}
+			nom_1D_histos = {}
 			for p in c.getProcessList() :
 				if p.isDataProcess() :
 					continue
@@ -313,6 +314,7 @@ class Template_Group(object) :
 					if t.getModifier()==None :
 						temp1D,binlist=t.convertTo1D()
 						bins_to_zero[p.getName()]=binlist
+						nom_1D_histos[p.getName()]=temp1D
 						hist_list.append(temp1D)
 			#finally do all the systematics wiggle templates
 			for p in c.getProcessList() :
@@ -321,7 +323,7 @@ class Template_Group(object) :
 				for t in p.getTemplateList() :
 					if t.getModifier()==None :
 						continue
-					temp1D,binlist=t.convertTo1D(bins_to_zero[p.getName()])
+					temp1D,binlist=t.convertTo1D(bins_to_zero[p.getName()],nom_1D_histos[p.getName()])
 					hist_list.append(temp1D)
 		return hist_list
 
