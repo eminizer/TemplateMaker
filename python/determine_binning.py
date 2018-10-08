@@ -239,78 +239,78 @@ class Channel(object) :
 		self._z_data = z_data[:realcount]
 
 	def doBayesianBlocks(self) :
-		print 'doing bayesian_blocks in channel %s'%(self._name)
-		#use even-width bins in the cstar dimension
-		xbinwidth = (self._xmax-self._xmin)/(self._nxbins)
-		bb_x_bins = array('f',(self._nxbins+1)*[0.])
-		for i in range(len(bb_x_bins)) :
-			bb_x_bins[i] = self._xmin+i*xbinwidth
-		print 'bb_x_bins = %s'%(bb_x_bins)
-		#x_F dimension uses the Bayesian Blocks algorithm to a stopping point, then fills out to the last bin edge
-		const=self._inityconst; lastlen=500; switches=0
-		while True :
-			bb_y_bins = bayesian_blocks(self._y_data,const)
-			#bb_y_bins = bayesian_blocks([self._y_data[i] for i in range(0,len(self._y_data),10)],const) #shortened bayesian blocks array to reduce runtime
-			print '	y const = %.6f, nybins = %d'%(const,len(bb_y_bins)-1)
-			if len(bb_y_bins)==self._nybins+1 or switches>4 :
-				break
-			elif len(bb_y_bins)>self._nybins+1 :
-				if lastlen<self._nybins+1 :
-					switches+=1
-				const+=(10./(10**switches))
-			elif len(bb_y_bins)<self._nybins+1 :
-				if lastlen>self._nybins+1 :
-					switches+=1
-				const-=(10./(10**switches))
-			lastlen=len(bb_y_bins)
-		bb_y_bins[0] = self._ymin; bb_y_bins[-1] = self._ymax; bb_y_bins.append(self._yend)
-		print 'bb_y_bins = %s'%(bb_y_bins)
-	#	#dummy y-dimension returning bins in use
-	#	bb_y_bins = BINS_IN_USE[self._name]['y']
+	#	print 'doing bayesian_blocks in channel %s'%(self._name)
+	#	#use even-width bins in the cstar dimension
+	#	xbinwidth = (self._xmax-self._xmin)/(self._nxbins)
+	#	bb_x_bins = array('f',(self._nxbins+1)*[0.])
+	#	for i in range(len(bb_x_bins)) :
+	#		bb_x_bins[i] = self._xmin+i*xbinwidth
+	#	print 'bb_x_bins = %s'%(bb_x_bins)
+	#	#x_F dimension uses the Bayesian Blocks algorithm to a stopping point, then fills out to the last bin edge
+	#	const=self._inityconst; lastlen=500; switches=0
+	#	while True :
+	#		bb_y_bins = bayesian_blocks(self._y_data,const)
+	#		#bb_y_bins = bayesian_blocks([self._y_data[i] for i in range(0,len(self._y_data),10)],const) #shortened bayesian blocks array to reduce runtime
+	#		print '	y const = %.6f, nybins = %d'%(const,len(bb_y_bins)-1)
+	#		if len(bb_y_bins)==self._nybins+1 or switches>4 :
+	#			break
+	#		elif len(bb_y_bins)>self._nybins+1 :
+	#			if lastlen<self._nybins+1 :
+	#				switches+=1
+	#			const+=(10./(10**switches))
+	#		elif len(bb_y_bins)<self._nybins+1 :
+	#			if lastlen>self._nybins+1 :
+	#				switches+=1
+	#			const-=(10./(10**switches))
+	#		lastlen=len(bb_y_bins)
+	#	bb_y_bins[0] = self._ymin; bb_y_bins[-1] = self._ymax; bb_y_bins.append(self._yend)
 	#	print 'bb_y_bins = %s'%(bb_y_bins)
-		#M dimension returns equal-content bins
-		bb_z_bins = array('f',(self._nzbins+1)*[0.])
-		self._z_data = np.sort(self._z_data)
-		nEventsPerZBin = int(round(len(self._z_data)/self._nzbins))
-		bb_z_bins[0] = self._zmin
-		for i in range(1,self._nzbins) :
-			bb_z_bins[i]=0.5*(self._z_data[i*nEventsPerZBin-1]+self._z_data[i*nEventsPerZBin])
-		bb_z_bins[-1] = self._zmax
-		print 'bb_z_bins = %s'%(bb_z_bins)
+	##	#dummy y-dimension returning bins in use
+	##	bb_y_bins = BINS_IN_USE[self._name]['y']
+	##	print 'bb_y_bins = %s'%(bb_y_bins)
+	#	#M dimension returns equal-content bins
+	#	bb_z_bins = array('f',(self._nzbins+1)*[0.])
+	#	self._z_data = np.sort(self._z_data)
+	#	nEventsPerZBin = int(round(len(self._z_data)/self._nzbins))
+	#	bb_z_bins[0] = self._zmin
+	#	for i in range(1,self._nzbins) :
+	#		bb_z_bins[i]=0.5*(self._z_data[i*nEventsPerZBin-1]+self._z_data[i*nEventsPerZBin])
+	#	bb_z_bins[-1] = self._zmax
+	#	print 'bb_z_bins = %s'%(bb_z_bins)
 		##################################### 10x finer than what's in use only #####################################
-		#bb_x_bins = array('f',((10*(self._nxbins+1))+1)*[0.])
-		#k=0
-		#for i in range(self._nxbins+1) :
-		#	startval = BINS_IN_USE[self._name]['x'][i]
-		#	endval = BINS_IN_USE[self._name]['x'][i+1]
-		#	interval = (endval-startval)/10
-		#	for j in range(10) :
-		#		bb_x_bins[k] = startval+j*interval
-		#		k+=1
-		#bb_x_bins[-1]=BINS_IN_USE[self._name]['x'][-1]
-		#print 'bb_x_bins = %s'%(bb_x_bins)
-		#bb_y_bins = array('f',((10*(self._nybins+1))+1)*[0.])
-		#k=0
-		#for i in range(self._nybins+1) :
-		#	startval = BINS_IN_USE[self._name]['y'][i]
-		#	endval = BINS_IN_USE[self._name]['y'][i+1]
-		#	interval = (endval-startval)/10
-		#	for j in range(10) :
-		#		bb_y_bins[k] = startval+j*interval
-		#		k+=1
-		#bb_y_bins[-1]=BINS_IN_USE[self._name]['y'][-1]
-		#print 'bb_y_bins = %s'%(bb_y_bins)
-		#bb_z_bins = array('f',((10*(self._nzbins+1))+1)*[0.])
-		#k=0
-		#for i in range(self._nzbins+1) :
-		#	startval = BINS_IN_USE[self._name]['z'][i]
-		#	endval = BINS_IN_USE[self._name]['z'][i+1]
-		#	interval = (endval-startval)/10
-		#	for j in range(10) :
-		#		bb_z_bins[k] = startval+j*interval
-		#		k+=1
-		#bb_z_bins[-1]=BINS_IN_USE[self._name]['z'][-1]
-		#print 'bb_z_bins = %s'%(bb_z_bins)
+		bb_x_bins = array('f',((10*(self._nxbins))+1)*[0.])
+		k=0
+		for i in range(self._nxbins) :
+			startval = BINS_IN_USE[self._name]['x'][i]
+			endval = BINS_IN_USE[self._name]['x'][i+1]
+			interval = (endval-startval)/10
+			for j in range(10) :
+				bb_x_bins[k] = startval+j*interval
+				k+=1
+		bb_x_bins[-1]=BINS_IN_USE[self._name]['x'][-1]
+		print 'bb_x_bins = %s'%(bb_x_bins)
+		bb_y_bins = array('f',((10*(self._nybins+1))+1)*[0.])
+		k=0
+		for i in range(self._nybins+1) :
+			startval = BINS_IN_USE[self._name]['y'][i]
+			endval = BINS_IN_USE[self._name]['y'][i+1]
+			interval = (endval-startval)/10
+			for j in range(10) :
+				bb_y_bins[k] = startval+j*interval
+				k+=1
+		bb_y_bins[-1]=BINS_IN_USE[self._name]['y'][-1]
+		print 'bb_y_bins = %s'%(bb_y_bins)
+		bb_z_bins = array('f',((10*(self._nzbins))+1)*[0.])
+		k=0
+		for i in range(self._nzbins) :
+			startval = BINS_IN_USE[self._name]['z'][i]
+			endval = BINS_IN_USE[self._name]['z'][i+1]
+			interval = (endval-startval)/10
+			for j in range(10) :
+				bb_z_bins[k] = startval+j*interval
+				k+=1
+		bb_z_bins[-1]=BINS_IN_USE[self._name]['z'][-1]
+		print 'bb_z_bins = %s'%(bb_z_bins)
 		##################################### 10x finer than what's in use only #####################################
 		#copy results into the binning arrays
 		self._best_fit_x_bins = array('d',len(bb_x_bins)*[0.])
@@ -381,35 +381,35 @@ class Channel(object) :
 all_channels = {}
 #signal region
 #charge separated
-#all_channels['t1_muplus_SR']  = Channel('t1_muplus_SR','eventTopology==1 && lepflavor==1 && lep_Q>0 && fullselection==1',8,-1.,1.,2,0.,0.30,0.6,2,500.,3000.,100.,45.)
-#all_channels['t1_muminus_SR'] = Channel('t1_muminus_SR','eventTopology==1 && lepflavor==1 && lep_Q<0 && fullselection==1',8,-1.,1.,2,0.,0.30,0.6,2,500.,3000.,55.,45.)
-#all_channels['t1_elplus_SR']  = Channel('t1_elplus_SR','eventTopology==1 && lepflavor==2 && lep_Q>0 && fullselection==1',8,-1.,1.,2,0.,0.30,0.6,2,500.,3000.,45.,35.)
-#all_channels['t1_elminus_SR'] = Channel('t1_elminus_SR','eventTopology==1 && lepflavor==2 && lep_Q<0 && fullselection==1',8,-1.,1.,2,0.,0.30,0.6,2,500.,3000.,25.,25.)
-#all_channels['t2_muplus_SR']  = Channel('t2_muplus_SR','eventTopology==2 && lepflavor==1 && lep_Q>0 && fullselection==1',10,-1.,1.,4,0.,0.20,0.6,5,300.,3000.,50.)
-#all_channels['t2_muminus_SR'] = Channel('t2_muminus_SR','eventTopology==2 && lepflavor==1 && lep_Q<0 && fullselection==1',10,-1.,1.,4,0.,0.20,0.6,5,300.,3000.,50.)
-#all_channels['t2_elplus_SR']  = Channel('t2_elplus_SR','eventTopology==2 && lepflavor==2 && lep_Q>0 && fullselection==1',10,-1.,1.,4,0.,0.20,0.6,5,300.,3000.,5.)
-#all_channels['t2_elminus_SR'] = Channel('t2_elminus_SR','eventTopology==2 && lepflavor==2 && lep_Q<0 && fullselection==1',10,-1.,1.,4,0.,0.20,0.6,5,300.,3000.,4.)
+all_channels['t1_muplus_SR']  = Channel('t1_muplus_SR','eventTopology==1 && lepflavor==1 && lep_Q>0 && fullselection==1',6,-1.,1.,2,0.,0.30,0.6,2,500.,3000.,100.,45.)
+all_channels['t1_muminus_SR'] = Channel('t1_muminus_SR','eventTopology==1 && lepflavor==1 && lep_Q<0 && fullselection==1',6,-1.,1.,2,0.,0.30,0.6,2,500.,3000.,55.,45.)
+all_channels['t1_elplus_SR']  = Channel('t1_elplus_SR','eventTopology==1 && lepflavor==2 && lep_Q>0 && fullselection==1',6,-1.,1.,2,0.,0.30,0.6,2,500.,3000.,45.,35.)
+all_channels['t1_elminus_SR'] = Channel('t1_elminus_SR','eventTopology==1 && lepflavor==2 && lep_Q<0 && fullselection==1',6,-1.,1.,2,0.,0.30,0.6,2,500.,3000.,25.,25.)
+all_channels['t2_muplus_SR']  = Channel('t2_muplus_SR','eventTopology==2 && lepflavor==1 && lep_Q>0 && fullselection==1',8,-1.,1.,4,0.,0.20,0.6,5,300.,3000.,50.)
+all_channels['t2_muminus_SR'] = Channel('t2_muminus_SR','eventTopology==2 && lepflavor==1 && lep_Q<0 && fullselection==1',8,-1.,1.,4,0.,0.20,0.6,5,300.,3000.,50.)
+all_channels['t2_elplus_SR']  = Channel('t2_elplus_SR','eventTopology==2 && lepflavor==2 && lep_Q>0 && fullselection==1',8,-1.,1.,4,0.,0.20,0.6,5,300.,3000.,5.)
+all_channels['t2_elminus_SR'] = Channel('t2_elminus_SR','eventTopology==2 && lepflavor==2 && lep_Q<0 && fullselection==1',8,-1.,1.,4,0.,0.20,0.6,5,300.,3000.,4.)
 all_channels['t3_muplus_SR']  = Channel('t3_muplus_SR','eventTopology==3 && lepflavor==1 && lep_Q>0 && fullselection==1',20,-1.,1.,9,0.,0.18,0.6,10,300.,2000.,10.)
 all_channels['t3_muminus_SR'] = Channel('t3_muminus_SR','eventTopology==3 && lepflavor==1 && lep_Q<0 && fullselection==1',20,-1.,1.,9,0.,0.18,0.6,10,300.,2000.,10.)
 all_channels['t3_elplus_SR']  = Channel('t3_elplus_SR','eventTopology==3 && lepflavor==2 && lep_Q>0 && fullselection==1',20,-1.,1.,9,0.,0.18,0.6,10,300.,2000.,10.)
 all_channels['t3_elminus_SR'] = Channel('t3_elminus_SR','eventTopology==3 && lepflavor==2 && lep_Q<0 && fullselection==1',20,-1.,1.,9,0.,0.18,0.6,10,300.,2000.,10.)#118.)
 #charge summed
-#all_channels['t1_mu_SR']  = Channel('t1_mu_SR','eventTopology==1 && lepflavor==1 && fullselection==1',8,-1.,1.,3,0.,0.6,2,500.,3000.,100.,45.)
-#all_channels['t1_el_SR']  = Channel('t1_el_SR','eventTopology==1 && lepflavor==2 && fullselection==1',8,-1.,1.,3,0.,0.6,2,500.,3000.,45.,35.)
+#all_channels['t1_mu_SR']  = Channel('t1_mu_SR','eventTopology==1 && lepflavor==1 && fullselection==1',6,-1.,1.,3,0.,0.6,2,500.,3000.,100.,45.)
+#all_channels['t1_el_SR']  = Channel('t1_el_SR','eventTopology==1 && lepflavor==2 && fullselection==1',6,-1.,1.,3,0.,0.6,2,500.,3000.,45.,35.)
 #all_channels['t2_mu_SR']  = Channel('t2_mu_SR','eventTopology==2 && lepflavor==1 && fullselection==1',14,-1.,1.,8,0.,0.4,3,300.,3000.,140.,5.)
 #all_channels['t2_el_SR']  = Channel('t2_el_SR','eventTopology==2 && lepflavor==2 && fullselection==1',14,-1.,1.,8,0.,0.4,3,300.,3000.,10.,10.)
 #all_channels['t3_mu_SR']  = Channel('t3_mu_SR','eventTopology==3 && lepflavor==1 && fullselection==1',20,-1.,1.,9,0.,0.3,6,300.,1500.,5.,2.)
 #all_channels['t3_el_SR']  = Channel('t3_el_SR','eventTopology==3 && lepflavor==2 && fullselection==1',20,-1.,1.,9,0.,0.3,6,300.,1500.,400.,50.)
 ##boosted W+Jets control regions
 #charge separated
-#all_channels['t1_muplus_WJets_CR']  = Channel('t1_muplus_WJets_CR','eventTopology==1 && lepflavor==1 && lep_Q>0 && wjets_cr_selection==1',8,-1.,1.,2,0.,0.30,0.6,2,500.,3000.,35.,25.)
-#all_channels['t1_muminus_WJets_CR'] = Channel('t1_muminus_WJets_CR','eventTopology==1 && lepflavor==1 && lep_Q<0 && wjets_cr_selection==1',8,-1.,1.,2,0.,0.30,0.6,2,500.,3000.,25.,15.)
-#all_channels['t1_elplus_WJets_CR']  = Channel('t1_elplus_WJets_CR','eventTopology==1 && lepflavor==2 && lep_Q>0 && wjets_cr_selection==1',8,-1.,1.,2,0.,0.30,0.6,2,500.,3000.,15.,25.)
-#all_channels['t1_elminus_WJets_CR'] = Channel('t1_elminus_WJets_CR','eventTopology==1 && lepflavor==2 && lep_Q<0 && wjets_cr_selection==1',8,-1.,1.,2,0.,0.30,0.6,2,500.,3000.,25.,8.)
-#all_channels['t2_muplus_WJets_CR']  = Channel('t2_muplus_WJets_CR','eventTopology==2 && lepflavor==1 && lep_Q>0 && wjets_cr_selection==1',10,-1.,1.,4,0.,0.20,0.6,5,300.,3000.,50.)
-#all_channels['t2_muminus_WJets_CR'] = Channel('t2_muminus_WJets_CR','eventTopology==2 && lepflavor==1 && lep_Q<0 && wjets_cr_selection==1',10,-1.,1.,4,0.,0.20,0.6,5,300.,3000.,25.)
-#all_channels['t2_elplus_WJets_CR']  = Channel('t2_elplus_WJets_CR','eventTopology==2 && lepflavor==2 && lep_Q>0 && wjets_cr_selection==1',10,-1.,1.,4,0.,0.20,0.6,5,300.,3000.,5.)
-#all_channels['t2_elminus_WJets_CR'] = Channel('t2_elminus_WJets_CR','eventTopology==2 && lepflavor==2 && lep_Q<0 && wjets_cr_selection==1',10,-1.,1.,4,0.,0.20,0.6,5,300.,3000.,4.)
+all_channels['t1_muplus_WJets_CR']  = Channel('t1_muplus_WJets_CR','eventTopology==1 && lepflavor==1 && lep_Q>0 && wjets_cr_selection==1',6,-1.,1.,2,0.,0.30,0.6,2,500.,3000.,35.,25.)
+all_channels['t1_muminus_WJets_CR'] = Channel('t1_muminus_WJets_CR','eventTopology==1 && lepflavor==1 && lep_Q<0 && wjets_cr_selection==1',6,-1.,1.,2,0.,0.30,0.6,2,500.,3000.,25.,15.)
+all_channels['t1_elplus_WJets_CR']  = Channel('t1_elplus_WJets_CR','eventTopology==1 && lepflavor==2 && lep_Q>0 && wjets_cr_selection==1',6,-1.,1.,2,0.,0.30,0.6,2,500.,3000.,15.,25.)
+all_channels['t1_elminus_WJets_CR'] = Channel('t1_elminus_WJets_CR','eventTopology==1 && lepflavor==2 && lep_Q<0 && wjets_cr_selection==1',6,-1.,1.,2,0.,0.30,0.6,2,500.,3000.,25.,8.)
+all_channels['t2_muplus_WJets_CR']  = Channel('t2_muplus_WJets_CR','eventTopology==2 && lepflavor==1 && lep_Q>0 && wjets_cr_selection==1',8,-1.,1.,4,0.,0.20,0.6,5,300.,3000.,50.)
+all_channels['t2_muminus_WJets_CR'] = Channel('t2_muminus_WJets_CR','eventTopology==2 && lepflavor==1 && lep_Q<0 && wjets_cr_selection==1',8,-1.,1.,4,0.,0.20,0.6,5,300.,3000.,25.)
+all_channels['t2_elplus_WJets_CR']  = Channel('t2_elplus_WJets_CR','eventTopology==2 && lepflavor==2 && lep_Q>0 && wjets_cr_selection==1',8,-1.,1.,4,0.,0.20,0.6,5,300.,3000.,5.)
+all_channels['t2_elminus_WJets_CR'] = Channel('t2_elminus_WJets_CR','eventTopology==2 && lepflavor==2 && lep_Q<0 && wjets_cr_selection==1',8,-1.,1.,4,0.,0.20,0.6,5,300.,3000.,4.)
 #charge summed
 #all_channels['t1_mu_WJets_CR']  = Channel('t1_mu_WJets_CR','eventTopology==1 && lepflavor==1 && wjets_cr_selection==1',8,-1.,1.,3,0.,0.6,4,500.,3000.,35.,25.)
 #all_channels['t1_el_WJets_CR']  = Channel('t1_el_WJets_CR','eventTopology==1 && lepflavor==2 && wjets_cr_selection==1',8,-1.,1.,3,0.,0.6,4,500.,3000.,15.,25.)

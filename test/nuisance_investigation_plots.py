@@ -7,7 +7,7 @@ gROOT.SetBatch()
 #tdrstyle.setTDRStyle()
 
 #open input file
-infilep = TFile('../total_template_files/templates_powheg_iter_4_all.root')
+infilep = TFile('../total_template_files/templates_powheg_iter_4_regularized_all.root')
 
 #lepton types to sum over
 leptypes = ['elplus','elminus','muplus','muminus']
