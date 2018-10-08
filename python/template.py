@@ -315,11 +315,13 @@ class Template(object) :
 						newHisto.SetBinContent(realbincounter,fillervalue)
 						zeroed_bins.append(realbincounter)
 					elif not self.__histo_3D.GetBinContent(k) > 0. :
-						newbincont = nom_1D_histo.GetBinContent(realbincounter)
-						if self.__type.endswith('Up') : 
-							newbincont*=(1.005)
-						elif self.__type.endswith('Down') :
-							newbincont*=(0.995)
+						newbincont = fillervalue
+						if nom_1D_histo!=None :
+							newbincont = nom_1D_histo.GetBinContent(realbincounter)
+							if self.__type.endswith('Up') : 
+								newbincont*=(1.005)
+							elif self.__type.endswith('Down') :
+								newbincont*=(0.995)
 						newHisto.SetBinContent(realbincounter,newbincont)
 						zeroed_bins.append(realbincounter)
 					realbincounter+=1
