@@ -160,7 +160,7 @@ def makeComparisonPlots(name,old_histo1D,new_template,nom_histo1D,afp) :
 ##########						Rebinning Functions						##########
 
 #given a 1D histogram, rebins and returns the resulting 1D histogram
-def rebin2DSlicesFrom1D(hist,xrbin=10,yrbin=10) :
+def rebin2DSlicesFrom1D(hist,xrbin=5,yrbin=5) :
 	#make a template object for the old 1D histogram
 	name_fine = hist.GetName()+'_fine'; name_coarse = hist.GetName()+'_coarse'
 	temp_fine = Template(name_fine,name_fine,None,binning='fine')
@@ -196,7 +196,7 @@ def rebin2DSlicesFrom1D(hist,xrbin=10,yrbin=10) :
 	return temp_coarse.convertTo1D()
 
 #given a finely-binned template, rebins and returns the resulting 1D histogram
-def rebin2DSlicesFromTemplate(temp_fine,xrbin=10,yrbin=10) :
+def rebin2DSlicesFromTemplate(temp_fine,xrbin=5,yrbin=5) :
 	#get this template in three dimensions
 	histo3D_fine = temp_fine.getHisto3D()
 	#make a list of x-y projected 2D histograms, one for each Z bin

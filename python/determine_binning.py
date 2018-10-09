@@ -277,41 +277,42 @@ class Channel(object) :
 	#		bb_z_bins[i]=0.5*(self._z_data[i*nEventsPerZBin-1]+self._z_data[i*nEventsPerZBin])
 	#	bb_z_bins[-1] = self._zmax
 	#	print 'bb_z_bins = %s'%(bb_z_bins)
-		##################################### 10x finer than what's in use only #####################################
-		bb_x_bins = array('f',((10*(self._nxbins))+1)*[0.])
+		##################################### finer than what's in use only #####################################
+		GRANULARITY=5
+		bb_x_bins = array('f',((GRANULARITY*(self._nxbins))+1)*[0.])
 		k=0
 		for i in range(self._nxbins) :
 			startval = BINS_IN_USE[self._name]['x'][i]
 			endval = BINS_IN_USE[self._name]['x'][i+1]
-			interval = (endval-startval)/10
-			for j in range(10) :
+			interval = (endval-startval)/GRANULARITY
+			for j in range(GRANULARITY) :
 				bb_x_bins[k] = startval+j*interval
 				k+=1
 		bb_x_bins[-1]=BINS_IN_USE[self._name]['x'][-1]
 		print 'bb_x_bins = %s'%(bb_x_bins)
-		bb_y_bins = array('f',((10*(self._nybins+1))+1)*[0.])
+		bb_y_bins = array('f',((GRANULARITY*(self._nybins+1))+1)*[0.])
 		k=0
 		for i in range(self._nybins+1) :
 			startval = BINS_IN_USE[self._name]['y'][i]
 			endval = BINS_IN_USE[self._name]['y'][i+1]
-			interval = (endval-startval)/10
-			for j in range(10) :
+			interval = (endval-startval)/GRANULARITY
+			for j in range(GRANULARITY) :
 				bb_y_bins[k] = startval+j*interval
 				k+=1
 		bb_y_bins[-1]=BINS_IN_USE[self._name]['y'][-1]
 		print 'bb_y_bins = %s'%(bb_y_bins)
-		bb_z_bins = array('f',((10*(self._nzbins))+1)*[0.])
+		bb_z_bins = array('f',((GRANULARITY*(self._nzbins))+1)*[0.])
 		k=0
 		for i in range(self._nzbins) :
 			startval = BINS_IN_USE[self._name]['z'][i]
 			endval = BINS_IN_USE[self._name]['z'][i+1]
-			interval = (endval-startval)/10
-			for j in range(10) :
+			interval = (endval-startval)/GRANULARITY
+			for j in range(GRANULARITY) :
 				bb_z_bins[k] = startval+j*interval
 				k+=1
 		bb_z_bins[-1]=BINS_IN_USE[self._name]['z'][-1]
 		print 'bb_z_bins = %s'%(bb_z_bins)
-		##################################### 10x finer than what's in use only #####################################
+		##################################### finer than what's in use only #####################################
 		#copy results into the binning arrays
 		self._best_fit_x_bins = array('d',len(bb_x_bins)*[0.])
 		for i in range(len(bb_x_bins)) :
