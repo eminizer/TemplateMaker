@@ -241,7 +241,8 @@ class MC_Process(Process) :
 							('sf_scale_comb','comb_scale_weight',False),
 							('sf_pdf_alphas','pdfas_weight',False),
 							('sf_top_pt_rw','top_pt_re_weight',False),
-							(None,'lumi',True)]
+							(None,'lumi',True),
+							]
 		self.__add_fit_parameter_templates__()
 		if include_JEC :
 			self.__make_JEC_modifier_list__(self.__JEC_names)
@@ -580,7 +581,8 @@ class Fit_Process(Process) :
 							('sf_scale_comb','comb_scale_weight',False),
 							('sf_pdf_alphas','pdfas_weight',False),
 							('sf_top_pt_rw','top_pt_re_weight',False),
-							(None,'lumi',True)]
+							(None,'lumi',True),
+							]
 		if include_JEC :
 			self.__make_JEC_modifier_list__(self.__JEC_names)
 			self.__add_JEC_templates__()

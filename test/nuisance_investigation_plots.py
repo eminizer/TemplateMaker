@@ -7,7 +7,7 @@ gROOT.SetBatch()
 #tdrstyle.setTDRStyle()
 
 #open input file
-infilep = TFile('../total_template_files/templates_powheg_all.root')
+infilep = TFile('../total_template_files/templates_powheg_iter_5_smoothed_all.root')
 
 #lepton types to sum over
 leptypes = ['elplus','elminus','muplus','muminus']
@@ -18,13 +18,13 @@ systematics = [('pileup_weight','Pileup Weight'),
 			   ('JER','Jet Energy Resolution'),
 			   ('trig_eff_weight','Trigger eff.'),
 			   ('lep_ID_weight','Lepton ID eff.'),
-			   #('lep_iso_weight','Lepton isolation eff.'),
+			   ('lep_iso_weight','Lepton isolation eff.'),
 			   ('btag_eff_weight','b-tagging eff.'),
 			   ('top_pt_re_weight','top p_{T} reweight'),
 			   ('lumi','Luminosity'),
 			   ('ren_scale_weight','Renormalization scale'),
 			   ('fact_scale_weight','Factorization scale'),
-			   #('comb_scale_weight','Combined #mu_{R}/#mu_{F} scale'),
+			   ('comb_scale_weight','Combined #mu_{R}/#mu_{F} scale'),
 			   ('pdfas_weight','PDF/#alpha_{s} weight'),
 			   ]
 #dictionary of histogram lists
@@ -145,12 +145,17 @@ for top in ratio_plots :
 			canvs[top][reg][sys[0]] = TCanvas(top+'_'+reg+'_'+sys[0]+'_canv',top+'_'+reg+'_'+sys[0]+'_canv',1500,900)
 
 #plot plots
+avg_shifts = {}
 for top in canvs :
+	avg_shifts[top] = {}
 	for reg in canvs[top] :
+		avg_shifts[top][reg] = {}
 		for s in canvs[top][reg] :
+			avg_shifts[top][reg][s] = 0.
 			#divide the canvas to plot every process
 			thiscanv = canvs[top][reg][s]
 			thiscanv.Divide(2,3)
+			#calculate the average shift 
 			#for each process...
 			for i in range(len(types)) :
 				#get the nominal and up/down histograms, and the ratio histogram
@@ -158,13 +163,14 @@ for top in canvs :
 				thisuphist = hists[top][reg][types[i]][s+'_up']
 				thisdnhist = hists[top][reg][types[i]][s+'_down']
 				thisratiohist = ratio_plots[top][reg][s][types[i]]
+				avg_shifts[top][reg][s]+=thisratiohist.GetMean()
 				#cd to this portion of the canvas
 				thiscanv.cd(i+1)
 				#draw the ratio histogram
 				thisratiohist.Draw("HIST P"); thiscanv.Update()
 				#get the scale for the histograms
 				scale = (gPad.GetUymax())/(thisuphist.GetMaximum())
-				print 'scale for %s %s shifts in %s = %.4f/%.4f=%.4f'%(s,types[i],top+'_'+reg,gPad.GetUymax(),thisuphist.GetMaximum(),scale)
+				#print 'scale for %s %s shifts in %s = %.4f/%.4f=%.4f'%(s,types[i],top+'_'+reg,gPad.GetUymax(),thisuphist.GetMaximum(),scale) #DEBUG
 				#scale and draw the other histograms
 				#thisnomhist.Draw("HIST SAME"); 
 				#thisnomhist.Scale(scale); 
@@ -181,6 +187,8 @@ for top in canvs :
 				thisratiohist.Draw("HIST P SAME")
 				thiscanv.Update()
 			thiscanv.Write()
+			avg_shifts[top][reg][s]/=len(types)
+			print top+'_'+reg+' '+s+' average shift = '+str(avg_shifts[top][reg][s])
 
 #save canvases
 #outfilep.cd()
