@@ -1,14 +1,15 @@
 #Imports
 from math import sqrt
 import os
+import random
 from ROOT import *
 from template import Template
 
 gROOT.SetBatch()
 
 #input/output total template file names
-infilepath = 'templates_powheg_iter_4_all.root'
-outfilepath = 'templates_powheg_iter_4_regularized_all.root'
+infilepath = 'templates_powheg_iter_5_smoothed_all.root'
+outfilepath = 'templates_powheg_iter_5_regularized_all.root'
 
 #process and systematic masks: which histograms are we allowed to modify? 
 process_masks = ['fqp0','fqp1','fqp2','fqm0','fqm1','fqm2','fg0','fg1','fg2','fg3','fg4','fbck','fwjets'] #note no QCD
@@ -105,10 +106,10 @@ for dk in histo_sets :
 				olddowncont=histo_sets[dk][s]['Down'].GetBinContent(bin)
 				thisfluct = (oldupcont-olddowncont)/nomhisto.GetBinContent(bin)
 				#if the abs(fluctuation)>20. it's an outlier bin; reset the values in the shifted histograms
-				if abs(thisfluct)>0.05 :
+				if abs(thisfluct)>1. :
 				#if abs(thisfluct-flucts[dk][s]['avg'])>20.*flucts[dk][s]['stddev'] :
 					nomcont=nomhisto.GetBinContent(bin)
-					newupcont=nomcont*1.005; newdncont=nomcont*0.995
+					newupcont=nomcont*(1.+0.05*random.random()); newdncont=nomcont*(1.-0.05*random.random())
 					print '		bin %d has a fluctuation %.6f: setting Up/Down content to %.6f / %.6f from %.6f / %.6f '%(bin,thisfluct,newupcont,newdncont,oldupcont,olddowncont)
 					histo_sets[dk][s]['Up'].SetBinContent(bin,newupcont)
 					histo_sets[dk][s]['Down'].SetBinContent(bin,newdncont)

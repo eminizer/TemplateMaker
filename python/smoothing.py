@@ -2,12 +2,13 @@
 from math import sqrt
 from optparse import OptionParser
 import os
-import numpy as np
+import random
 from ROOT import *
 from template import Template
 from lowess import lowess
 
 gROOT.SetBatch()
+gErrorIgnoreLevel=kError
 
 ##########								Parser Options								##########
 
@@ -39,6 +40,27 @@ parser.add_option('--robust', action='store_true', dest='robust',
 channels  = [x.lower() for x in options.channels.split('__')] if options.channels!='*' else '*'
 processes = [x.lower() for x in options.processes.split('__')] if options.processes!='*' else '*'
 nuisances = [x.lower() for x in options.nuisances.split('__')] if options.nuisances!='*' else '*'
+
+##########						Function to Remove Zeroed Bins						##########
+
+def removeZeroBins(histo,nomhisto=None) :
+	nbins = histo.GetNbinsX()
+	#loop over all the bins
+	for i in range(1,nbins+1) :
+		#if the content of the histogram is <=zero or the nominal content is <=zero/0.00001
+		if histo.GetBinContent(i)<=0. or (nomhisto!=None and (nomhisto.GetBinContent(i)<=0. or nomhisto.GetBinContent(i)==0.00001)) :
+			#if it's the nominal histogram, just set the content to 0.00001
+			if nomhisto==None : 
+				histo.SetBinContent(i,0.00001)
+			else :
+				#otherwise get the content and error shift from the nominal histogram's content
+				cont = 0.00001 if nomhisto.GetBinContent(i)<=0. else nomhisto.GetBinContent(i)
+				shift = 0.1*cont*(random.random()-0.5)
+				if histo.GetName().endswith('Up') :
+					histo.SetBinContent(i,cont+shift)
+				elif histo.GetName().endswith('Down') :
+					histo.SetBinContent(i,cont-shift)
+	return histo
 
 ##########						Template Smoothing Function						##########
 
@@ -103,7 +125,7 @@ def makeComparisonPlots(name,old_histo1D,new_template,nom_histo1D,afp) :
 	new_y_proj = new_template.getHistoY()
 	nom_x_proj = nom_template.getHistoX()
 	nom_y_proj = nom_template.getHistoY()
-	new_histo1D = new_template.convertTo1D()
+	new_histo1D,garbage = new_template.convertTo1D()
 	old_x_proj.SetLineWidth(4); old_x_proj.SetLineColor(kRed)
 	old_y_proj.SetLineWidth(4); old_y_proj.SetLineColor(kRed)
 	new_x_proj.SetLineWidth(4); new_x_proj.SetLineColor(kBlue)
@@ -193,7 +215,8 @@ def rebin2DSlicesFrom1D(hist,xrbin=5,yrbin=5) :
 			for j in range(1,nybins+1) :
 				histo3D_coarse.SetBinContent(histo3D_coarse.GetBin(i,j,k),thisprojhisto.GetBinContent(thisprojhisto.GetBin(i,j,k)))
 	temp_coarse.setHistos([histo3D_coarse,histo3D_coarse.ProjectionX(),histo3D_coarse.ProjectionY(),histo3D_coarse.ProjectionZ()])
-	return temp_coarse.convertTo1D()
+	returntemplate,garbage = temp_coarse.convertTo1D()
+	return returntemplate
 
 #given a finely-binned template, rebins and returns the resulting 1D histogram
 def rebin2DSlicesFromTemplate(temp_fine,xrbin=5,yrbin=5) :
@@ -246,9 +269,10 @@ garbage_file = TFile.Open(garbage_file_name,'recreate')
 output_auxfile = TFile.Open(output_aux_file_name,'recreate')
 garbage_file.cd()
 
-#iterate through all old histogram objects in the input file
+#iterate through all old histogram objects in the input file 
+rebinned_nominal_histos = {}
 all_old_histos={}; all_new_histos={}; all_new_templates={}; all_canvs = {}
-final_real_template_histos = []
+rebinned_template_histos = {}
 keylist = input_file.GetListOfKeys()
 for k in keylist :
 	#get the histogram name
@@ -272,12 +296,14 @@ for k in keylist :
 		continue
 	#get the histogram itself
 	all_old_histos[n]=k.ReadObj()
+	real_template=None
 	#check if this histogram is one that should be smoothed based on the masks
 	if (channels=='*' or thischan.lower() in channels) and (processes=='*' or thisproc.lower() in processes) and (nuisances=='*' or (thisnuis!='' and thisnuis.lower() in nuisances)) :
 		print 'Smoothing template %s...'%(n)
 		#get back the new smoothed template object and its 1D histogram
 		all_new_templates[n] = smoothTemplate(all_old_histos[n],n,options.deg,options.kernel,options.robust)
-		all_new_histos[n] = all_new_templates[n].convertTo1D()
+		thisnewhisto,garbage = all_new_templates[n].convertTo1D()
+		all_new_histos[n] = thisnewhisto
 		#make the comparison plot and save it to the auxiliary file
 		nominal_histo = (input_file.Get(thischan+'__'+thisproc)).Clone(thischan+'__'+thisproc+'__'+thisnuis+'NominalFor'+thisud)
 		rebinned_nominal_histo = rebin2DSlicesFrom1D(nominal_histo)
@@ -288,11 +314,27 @@ for k in keylist :
 		#add renamed and rebinned template to the list of final histograms
 		real_template = rebin2DSlicesFrom1D(all_new_histos[n])
 		real_template.SetName(n)
-		final_real_template_histos.append(real_template)
 	else :
 		real_template = rebin2DSlicesFrom1D(all_old_histos[n])
 		real_template.SetName(n)
-		final_real_template_histos.append(real_template)
+	rebinned_template_histos[n]=real_template
+	#if it was a nominal histogram, add it to the nominal histogram dictionary to fix the zeroed bins later
+	if thisnuis=='' :# and thisproc!='data_obs' :
+		rebinned_nominal_histos[thischan+'__'+thisproc] = real_template
+
+#next we have to handle the bins that are zeroed
+final_real_template_histos = []
+for n in rebinned_template_histos :
+	nsplit = n.split('__')
+	thischan = nsplit[0]; thisproc=''; thisnuis=''
+	if len(nsplit) > 1 :
+		thisproc=nsplit[1]
+		if len(nsplit) > 2 :
+			thisnuis=nsplit[2].rstrip('Up').rstrip('Down')
+	if thisnuis=='' : #if it's the nominal template, just correct the zero bins
+		final_real_template_histos.append(removeZeroBins(rebinned_template_histos[n]))
+	else : #otherwise we also need to send the nominal template for this process/channel
+		final_real_template_histos.append(removeZeroBins(rebinned_template_histos[n],rebinned_nominal_histos[thischan+'__'+thisproc]))		
 
 #Set the final template histogram locations
 for h in final_real_template_histos :
