@@ -8,7 +8,7 @@ class Channel(object) :
 	__mc_process_names = ['fgg','fqq','fbck','fwjets']
 	__QCD_process_names = ['fqcd']
 	__data_process_names = ['data_obs']
-	__fit_process_names = ['fqp0','fqp1','fqp2','fqm0','fqm1','fqm2','fg0','fg1','fg2','fg3','fg4']
+	__fit_process_names = ['fqp0','fqm0','fq0','fq1','fq2','fg0','fg1','fg2','fg3','fg4']
 	#__fit_process_names = ['fqp0','fqm0','fg0']
 
 	def __init__(self,name,fit_parameter_tuple,include_JEC,include_sss) :

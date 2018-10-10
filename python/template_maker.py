@@ -516,9 +516,9 @@ def get_contrib_weight(filepath,process) :
 	pname = process.getName()
 	#if it's a data or QCD process return 1 only if it's a data file
 	if process.isDataProcess() or process.isQCDProcess() :
-		if filepath.find('SingleMu')!=-1 and pname[3:].startswith('mu')!=-1 :
+		if filepath.find('SingleMu')!=-1 and pname[3:].startswith('mu') :
 			return 1.0
-		elif filepath.find('SingleEl')!=-1 and pname[3:].startswith('el')!=-1 :
+		elif filepath.find('SingleEl')!=-1 and pname[3:].startswith('el') :
 			return 1.0
 		else :
 			return 0.
@@ -528,7 +528,7 @@ def get_contrib_weight(filepath,process) :
 		if filepath.find('SingleMu')!=-1 or filepath.find('SingleEl')!=-1 :
 			return 0.
 		#check the ttbar processes
-		if pname.find('fq')!=-1 or pname.find('fg')!=-1 :
+		if pname.split('__')[1].startswith('fq') or pname.split('__')[1].startswith('fg') :
 			if filepath.find('powheg_TT')!=-1 or filepath.find('mcatnlo_TT')!=-1 :
 				return 1.0
 			return 0.

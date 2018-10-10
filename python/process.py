@@ -23,11 +23,10 @@ fwjets_func = '#Rwjets#'
 fqcd_func = '#Rqcd#'
 #-------------------------------
 fqp0_func = '( 0.5 * (1 + $wqa0$) )'
-fqp1_func = '( 0.5 * ($wqs1$ + $wqa1$) )'
-fqp2_func = '( 0.5 * ($wqs2$ + $wqa2$) )'
 fqm0_func = '( 0.5 * (1 - $wqa0$) )'
-fqm1_func = '( 0.5 * ($wqs1$ - $wqa1$) )'
-fqm2_func = '( 0.5 * ($wqs2$ - $wqa2$) )'
+fq0_func  = '(1. + 0.1 * $wqa0$)'
+fq1_func  = '($wqs1$ + 0.1 * $wqa1$)'
+fq2_func  = '($wqs2$ + 0.1 * $wqa2$)'
 fg0_func  = '( 1. )'
 fg1_func  = '( $wg1$ )'
 fg2_func  = '( $wg2$ )'
@@ -232,7 +231,11 @@ class MC_Process(Process) :
 							('sf_trig_eff',self.getLepType()+'_trig_eff_weight_'+self.getTrigReg(),True),
 							('sf_lep_ID',self.getLepType()+'_ID_weight',True),
 							('sf_lep_iso',self.getLepType()+'_iso_weight',True),
-							('sf_btag_eff','btag_eff_weight_'+self.getTrigReg(),False),
+							('sf_btag_eff_flavb','btag_eff_weight_flavb_'+self.getTrigReg(),False),
+							('sf_btag_eff_flavc','btag_eff_weight_flavc_'+self.getTrigReg(),False),
+							#('sf_btag_eff_heavy','btag_eff_weight_heavy'+self.getTrigReg(),False),
+							('sf_btag_eff_light','btag_eff_weight_light_'+self.getTrigReg(),False),
+							('sf_ttag_eff','ttag_eff_weight_'+self.getTrigReg(),False),
 							('sf_mu_R','ren_scale_weight',False),
 							('sf_mu_F','fact_scale_weight',False),
 							('sf_scale_comb','comb_scale_weight',False),
@@ -567,7 +570,11 @@ class Fit_Process(Process) :
 							('sf_trig_eff',self.getLepType()+'_trig_eff_weight_'+self.getTrigReg(),True),
 							('sf_lep_ID',self.getLepType()+'_ID_weight',True),
 							('sf_lep_iso',self.getLepType()+'_iso_weight',True),
-							('sf_btag_eff','btag_eff_weight_'+self.getTrigReg(),False),
+							('sf_btag_eff_flavb','btag_eff_weight_flavb_'+self.getTrigReg(),False),
+							('sf_btag_eff_flavc','btag_eff_weight_flavc_'+self.getTrigReg(),False),
+							#('sf_btag_eff_heavy','btag_eff_weight_heavy'+self.getTrigReg(),False),
+							('sf_btag_eff_light','btag_eff_weight_light_'+self.getTrigReg(),False),
+							('sf_ttag_eff','ttag_eff_weight_'+self.getTrigReg(),False),
 							('sf_mu_R','ren_scale_weight',False),
 							('sf_mu_F','fact_scale_weight',False),
 							('sf_scale_comb','comb_scale_weight',False),
@@ -695,16 +702,14 @@ def autoset_base_function(name) :
 		base_function = ''
 	elif name == 'fqp0' :
 		base_function = fqp0_func
-	elif name == 'fqp1' :
-		base_function = fqp1_func
-	elif name == 'fqp2' :
-		base_function = fqp2_func
 	elif name == 'fqm0' :
 		base_function = fqm0_func
-	elif name == 'fqm1' :
-		base_function = fqm1_func
-	elif name == 'fqm2' :
-		base_function = fqm2_func
+	elif name == 'fq0' :
+		base_function = fq0_func
+	elif name == 'fq1' :
+		base_function = fq1_func
+	elif name == 'fq2' :
+		base_function = fq2_func
 	elif name == 'fg0' :
 		base_function = fg0_func
 	elif name == 'fg1' :
