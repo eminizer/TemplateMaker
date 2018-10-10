@@ -12,8 +12,8 @@ infilepath = 'templates_powheg_iter_5_smoothed_all.root'
 outfilepath = 'templates_powheg_iter_5_regularized_all.root'
 
 #process and systematic masks: which histograms are we allowed to modify? 
-process_masks = ['fqp0','fqp1','fqp2','fqm0','fqm1','fqm2','fg0','fg1','fg2','fg3','fg4','fbck','fwjets'] #note no QCD
-sys_masks = ['JER'] #right now only worried about jet energy resolution
+process_masks = ['fqp0','fqm0','fq0','fq1','fq2','fg0','fg1','fg2','fg3','fg4','fbck','fwjets'] #note no QCD
+sys_masks = ['JES','JER'] #right now only worried about jet energy scale/resolution
 
 #open the input file
 infilep = TFile.Open(infilepath,'r')

@@ -1,6 +1,7 @@
 from ROOT import TH3D, TH1D, TFile
 from array import array
 import copy
+import random
 from math import *
 
 #binning dictionary: first key = channel name, second key = "x","y", or "z"
@@ -362,30 +363,30 @@ class Template(object) :
 				realbincounter+=1
 		#correct any zero bins not in data
 		zeroed_bins = []
-		#if self.__name.find('data_obs')==-1 :
-		#	#fill zero or less bins with a very small value
-		#	fillervalue = 0.00010
-		#	if self.__type.endswith('Up') : 
-		#		fillervalue = 0.0001005
-		#	elif self.__type.endswith('Down') :
-		#		fillervalue=0.0000995
-		#	realbincounter = 1
-		#	for k in range(nglobalbins) :
-		#		if not self.__histo_3D.IsBinOverflow(k) and not self.__histo_3D.IsBinUnderflow(k) :
-		#			if (bins_to_zero!=None and realbincounter in bins_to_zero) and not self.__modifier.getName()=='top_pt_re_weight' :
-		#				newHisto.SetBinContent(realbincounter,fillervalue)
-		#				zeroed_bins.append(realbincounter)
-		#			elif not self.__histo_3D.GetBinContent(k) > 0. :
-		#				newbincont = fillervalue
-		#				if nom_1D_histo!=None :
-		#					newbincont = nom_1D_histo.GetBinContent(realbincounter)
-		#					if self.__type.endswith('Up') : 
-		#						newbincont*=(1.005)
-		#					elif self.__type.endswith('Down') :
-		#						newbincont*=(0.995)
-		#				newHisto.SetBinContent(realbincounter,newbincont)
-		#				zeroed_bins.append(realbincounter)
-		#			realbincounter+=1
+		if self.__name.find('data_obs')==-1 :
+			#fill zero or less bins with a very small value
+			fillervalue = 0.00010
+			if self.__type.endswith('Up') : 
+				fillervalue*=(1.005*random.random())
+			elif self.__type.endswith('Down') :
+				fillervalue*=(0.995*random.random())
+			realbincounter = 1
+			for k in range(nglobalbins) :
+				if not self.__histo_3D.IsBinOverflow(k) and not self.__histo_3D.IsBinUnderflow(k) :
+					if (bins_to_zero!=None and realbincounter in bins_to_zero) and not self.__modifier.getName()=='top_pt_re_weight' :
+						newHisto.SetBinContent(realbincounter,fillervalue)
+						zeroed_bins.append(realbincounter)
+					elif not self.__histo_3D.GetBinContent(k) > 0. :
+						newbincont = fillervalue
+						if nom_1D_histo!=None :
+							newbincont = nom_1D_histo.GetBinContent(realbincounter)
+							if self.__type.endswith('Up') : 
+								newbincont*=(1.005*random.random())
+							elif self.__type.endswith('Down') :
+								newbincont*=(0.995*random.random())
+						newHisto.SetBinContent(realbincounter,newbincont)
+						zeroed_bins.append(realbincounter)
+					realbincounter+=1
 		return newHisto,zeroed_bins
 
 	#make_from_1D_histo takes a 1D distribution and makes a template out of it!
