@@ -235,7 +235,7 @@ class MC_Process(Process) :
 							('sf_btag_eff_flavc','btag_eff_weight_flavc_'+self.getTrigReg(),False),
 							#('sf_btag_eff_heavy','btag_eff_weight_heavy'+self.getTrigReg(),False),
 							('sf_btag_eff_light','btag_eff_weight_light_'+self.getTrigReg(),False),
-							('sf_ttag_eff','ttag_eff_weight_'+self.getTrigReg(),False),
+							('sf_ttag_eff','ttag_eff_weight',False),
 							('sf_mu_R','ren_scale_weight',False),
 							('sf_mu_F','fact_scale_weight',False),
 							('sf_scale_comb','comb_scale_weight',False),

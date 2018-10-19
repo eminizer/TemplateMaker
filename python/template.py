@@ -139,7 +139,7 @@ BINS_COARSE = {
 #Template class
 class Template(object) :
 
-	def __init__(self,name,formatted_name,modifier,binning='fine') :
+	def __init__(self,name,formatted_name,modifier,binning='coarse') :
 		#A Template has a name and a formatted name
 		#print '	Adding template with name '+name
 		self.__name = name

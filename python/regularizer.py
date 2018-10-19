@@ -8,8 +8,8 @@ from template import Template
 gROOT.SetBatch()
 
 #input/output total template file names
-infilepath = 'templates_powheg_iter_5_smoothed_all.root'
-outfilepath = 'templates_powheg_iter_5_regularized_all.root'
+infilepath = 'templates_powheg_all.root'
+outfilepath = 'templates_powheg_regularized_all.root'
 
 #process and systematic masks: which histograms are we allowed to modify? 
 process_masks = ['fqp0','fqm0','fq0','fq1','fq2','fg0','fg1','fg2','fg3','fg4','fbck','fwjets'] #note no QCD
@@ -106,7 +106,7 @@ for dk in histo_sets :
 				olddowncont=histo_sets[dk][s]['Down'].GetBinContent(bin)
 				thisfluct = (oldupcont-olddowncont)/nomhisto.GetBinContent(bin)
 				#if the abs(fluctuation)>20. it's an outlier bin; reset the values in the shifted histograms
-				if abs(thisfluct)>1. :
+				if abs(thisfluct)>5. :
 				#if abs(thisfluct-flucts[dk][s]['avg'])>20.*flucts[dk][s]['stddev'] :
 					nomcont=nomhisto.GetBinContent(bin)
 					newupcont=nomcont*(1.+0.05*random.random()); newdncont=nomcont*(1.-0.05*random.random())

@@ -7,19 +7,22 @@ gROOT.SetBatch()
 #tdrstyle.setTDRStyle()
 
 #open input file
-infilep = TFile('../total_template_files/templates_powheg_iter_5_smoothed_all.root')
+infilep = TFile('../total_template_files/templates_powheg_all.root')
 
 #lepton types to sum over
 leptypes = ['elplus','elminus','muplus','muminus']
 
 #lists of systematics names 
 systematics = [('pileup_weight','Pileup Weight'),
-			   #('JES','Jet Energy Scale'),
+			   ('JES','Jet Energy Scale'),
 			   ('JER','Jet Energy Resolution'),
 			   ('trig_eff_weight','Trigger eff.'),
 			   ('lep_ID_weight','Lepton ID eff.'),
 			   ('lep_iso_weight','Lepton isolation eff.'),
-			   ('btag_eff_weight','b-tagging eff.'),
+			   ('btag_eff_weight_flavb','b-tagging eff. (b flavor)'),
+			   ('btag_eff_weight_flavc','b-tagging eff. (c flavor)'),
+			   ('btag_eff_weight_light','b-tagging eff. (light flavors)'),
+			   ('ttag_eff_weight','top-tagging eff.'),
 			   ('top_pt_re_weight','top p_{T} reweight'),
 			   ('lumi','Luminosity'),
 			   ('ren_scale_weight','Renormalization scale'),
@@ -64,7 +67,7 @@ for top in hists :
 					for j in range(len(leptypes)) :
 						newsysname = 'mu_iso_weight' if leptypes[j].startswith('mu') else 'el_iso_weight'
 						sysnames.append(newsysname)
-				elif basesysname=='btag_eff_weight' :
+				elif basesysname.startswith('btag_eff_weight') or basesysname.startswith('ttag_eff_weight') :
 					newsysname = basesysname + ('_r' if top=='t3' else '_b')
 					for j in range(len(leptypes)) :
 						sysnames.append(newsysname)
