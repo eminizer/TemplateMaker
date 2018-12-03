@@ -360,6 +360,7 @@ class Template(object) :
 						newHisto.SetBinError(realbincounter,self.__histo_3D.GetBinContent(k))
 					else :
 						newHisto.SetBinError(realbincounter,self.__histo_3D.GetBinError(k))
+				#print 'realbincounter = %d, content = %.3f'%(realbincounter,self.__histo_3D.GetBinContent(k))
 				realbincounter+=1
 		#correct any zero bins not in data
 		zeroed_bins = []
@@ -457,8 +458,8 @@ class Template(object) :
 		if ss_rw_list!=None :
 			ss_weights = [1.0,1.0] #BtoF first, then GH
 			for ss in ss_rw_list :
-			#if isinstance(ss,str) : #DEBUG
-			#	print 'ss = %s'%(ss) #DEBUG
+		#		if isinstance(ss,str) : #DEBUG
+		#			print 'ss = %s'%(ss) #DEBUG
 				ssname = ss.getName()
 				if ssname.find('_iso_weight')!=-1 and skipiso :
 					continue

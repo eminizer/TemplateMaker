@@ -8,12 +8,29 @@ from template import Template
 gROOT.SetBatch()
 
 #input/output total template file names
-infilepath = 'templates_powheg_all.root'
-outfilepath = 'templates_powheg_regularized_all.root'
+infilepath = 'templates_powheg_NEW_JEC_all.root'
+outfilepath = 'templates_powheg_NEW_JEC_regularized_all.root'
 
 #process and systematic masks: which histograms are we allowed to modify? 
 process_masks = ['fqp0','fqm0','fq0','fq1','fq2','fg0','fg1','fg2','fg3','fg4','fbck','fwjets'] #note no QCD
-sys_masks = ['JES','JER'] #right now only worried about jet energy scale/resolution
+#sys_masks = ['JES','JER'] #right now only worried about jet energy scale/resolution
+sys_masks = ['AK4JESPU',
+			 'AK4JESEta',
+			 'AK4JESPt',
+			 'AK4JESScale',
+			 'AK4JESTime',
+			 'AK4JESFlav',
+			 'AK4JERStat',
+			 'AK4JERSys',
+			 'AK8JESPU',
+			 'AK8JESEta',
+			 'AK8JESPt',
+			 'AK8JESScale',
+			 'AK8JESTime',
+			 'AK8JESFlav',
+			 'AK8JERStat',
+			 'AK8JERSys',
+			 ] #all the jet energy corrections
 
 #open the input file
 infilep = TFile.Open(infilepath,'r')
@@ -29,11 +46,12 @@ for k in keylist :
 	thischan = nsplit[0]; thisproc=''; thisnuis=''; thisud=''
 	thisproc=nsplit[1]
 	if len(nsplit)>2 :
-		thisnuis=nsplit[2].rstrip('Up').rstrip('Down')
 		if nsplit[2].endswith('Up') :
 			thisud='Up'
+			thisnuis=nsplit[2][:-2]
 		elif nsplit[2].endswith('Down') :
 			thisud='Down'
+			thisnuis=nsplit[2][:-4]
 	#dictionary key is the channel__process
 	dictkey = thischan+'__'+thisproc
 	if not dictkey in histo_sets :
@@ -48,6 +66,8 @@ for k in keylist :
 			histo_sets[dictkey][thisnuis]={}
 		#and third key is 'Up'/'Down'
 		histo_sets[dictkey][thisnuis][thisud]=k.ReadObj()
+
+#print histo_sets #DEBUG
 
 #open new file
 print 'new templates will be in file %s'%(outfilepath)
@@ -67,6 +87,7 @@ for dk in histo_sets :
 			continue
 		#look in each bin to add to the average and std. dev.
 		thisavg=0.; thisavg2=0.
+		#print 'looking for dk = %s and s = %s'%(dk,s) #DEBUG
 		for bin in range(1,nbins+1) :
 			fluct = (histo_sets[dk][s]['Up'].GetBinContent(bin)-histo_sets[dk][s]['Down'].GetBinContent(bin))/nomhisto.GetBinContent(bin)
 			thisavg+=fluct
@@ -106,7 +127,7 @@ for dk in histo_sets :
 				olddowncont=histo_sets[dk][s]['Down'].GetBinContent(bin)
 				thisfluct = (oldupcont-olddowncont)/nomhisto.GetBinContent(bin)
 				#if the abs(fluctuation)>20. it's an outlier bin; reset the values in the shifted histograms
-				if abs(thisfluct)>5. :
+				if abs(thisfluct)>1. :
 				#if abs(thisfluct-flucts[dk][s]['avg'])>20.*flucts[dk][s]['stddev'] :
 					nomcont=nomhisto.GetBinContent(bin)
 					newupcont=nomcont*(1.+0.05*random.random()); newdncont=nomcont*(1.-0.05*random.random())

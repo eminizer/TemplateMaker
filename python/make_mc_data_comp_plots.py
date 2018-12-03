@@ -8,8 +8,9 @@ from template import Template
 gROOT.SetBatch()
 
 #dictionary of the process names and their drawing colors
-procs = ['fqcd','fwjets','fbck','fg0','fg1','fg2','fg3','fg4','fqm0','fqm1','fqm2','fqp0','fqp1','fqp2'] #this is ordered to always stack the MC histograms in the same way
+procs = ['fqcd','fwjets','fbck','fg0','fg1','fg2','fg3','fg4','fq0','fq1','fq2'] #this is ordered to always stack the MC histograms in the same way
 prefit_procs = ['fqcd','fwjets','fbck','fgg','fqq']
+#prefit_procs = ['fqcd','fwjets','fbck','fg0','fq0']
 proc_colors = {'fqcd':kYellow,
 				'fwjets':kGreen,
 				'fbck':kMagenta,
@@ -20,18 +21,16 @@ proc_colors = {'fqcd':kYellow,
 		 		'fg3':kBlue,
 		 		'fg4':kBlue,
 		 		'fqq':kRed+2,
-		 		'fqm0':kRed+2,
-		 		'fqm1':kRed+2,
-		 		'fqm2':kRed+2,
-		 		'fqp0':kRed+2,
-		 		'fqp1':kRed+2,
-		 		'fqp2':kRed+2}
+		 		'fq0':kRed+2,
+		 		'fq1':kRed+2,
+		 		'fq2':kRed+2,
+				}
 proc_leg_names = {'fqcd':'QCD',
 				  'fwjets':'W+Jets',
 				  'fbck':'Other top/DY Jets',
 				  'fg0':'gg #rightarrow t#bar{t}',
 				  'fgg':'gg #rightarrow t#bar{t}',
-				  'fqp0':'q#bar{q} #rightarrow t#bar{t}',
+				  'fq0':'q#bar{q} #rightarrow t#bar{t}',
 				  'fqq':'q#bar{q} #rightarrow t#bar{t}'}
 
 parser = OptionParser()

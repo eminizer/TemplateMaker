@@ -5,6 +5,26 @@ from modifier import Fit_Parameter, JEC_Modifier, Simple_Systematic
 from branch import Branch
 from template import Template
 
+#Jet Energy Correction Systematic names
+JEC_NAMES = ['JES','JER',
+			 #'AK4JESPU',
+			 #'AK4JESEta',
+			 #'AK4JESPt',
+			 #'AK4JESScale',
+			 #'AK4JESTime',
+			 #'AK4JESFlav',
+			 #'AK4JERStat',
+			 #'AK4JERSys',
+			 #'AK8JESPU',
+			 #'AK8JESEta',
+			 #'AK8JESPt',
+			 #'AK8JESScale',
+			 #'AK8JESTime',
+			 #'AK8JESFlav',
+			 #'AK8JERStat',
+			 #'AK8JERSys',
+			 ]
+
 #Functions
 PREFAC_1 = '( @NTOT@ - @NBCK@ * #Rbck# - @NWJETS@ * #Rwjets# - @NQCD@ * #Rqcd# ) * ( 1. / @NTTBAR@ )'
 PREFAC_2 = '( @NTTBAR@ - @NQQBAR@ * #Rqqbar# ) * ( 1. / ( @NTTBAR@ - @NQQBAR@ ) )'
@@ -24,9 +44,9 @@ fqcd_func = '#Rqcd#'
 #-------------------------------
 fqp0_func = '( 0.5 * (1 + $wqa0$) )'
 fqm0_func = '( 0.5 * (1 - $wqa0$) )'
-fq0_func  = '(1. + 0.1 * $wqa0$)'
-fq1_func  = '($wqs1$ + 0.1 * $wqa1$)'
-fq2_func  = '($wqs2$ + 0.1 * $wqa2$)'
+fq0_func  = '( 1. + ( 0.1 * $wqa0$ ) )'
+fq1_func  = '( $wqs1$ + ( 0.1 * $wqa1$ ) )'
+fq2_func  = '( $wqs2$ + ( 0.1 * $wqa2$ ) )'
 fg0_func  = '( 1. )'
 fg1_func  = '( $wg1$ )'
 fg2_func  = '( $wg2$ )'
@@ -212,7 +232,7 @@ class Process(object) :
 class MC_Process(Process) :
 
 	#JEC names
-	__JEC_names = ['JES','JER']
+	__JEC_names = JEC_NAMES
 	#list of constant reweights
 	__const_reweights_ttrees = ['weight']
 	__const_reweights_ptrees = ['cs_weight']
@@ -552,7 +572,7 @@ class Data_Process(Process) :
 class Fit_Process(Process) :
 
 	#JEC names
-	__JEC_names = ['JES','JER']
+	__JEC_names = JEC_NAMES
 	#list of constant reweights
 	__const_reweights_ttrees = ['weight']
 	__const_reweights_ptrees = ['cs_weight']
@@ -575,7 +595,7 @@ class Fit_Process(Process) :
 							('sf_btag_eff_flavc','btag_eff_weight_flavc_'+self.getTrigReg(),False),
 							#('sf_btag_eff_heavy','btag_eff_weight_heavy'+self.getTrigReg(),False),
 							('sf_btag_eff_light','btag_eff_weight_light_'+self.getTrigReg(),False),
-							('sf_ttag_eff','ttag_eff_weight_'+self.getTrigReg(),False),
+							('sf_ttag_eff','ttag_eff_weight',False),
 							('sf_mu_R','ren_scale_weight',False),
 							('sf_mu_F','fact_scale_weight',False),
 							('sf_scale_comb','comb_scale_weight',False),

@@ -64,39 +64,47 @@ class Template_Group(object) :
 					if b.getTTreeName()!=None and b.getTTreeName() not in branches_to_copy.keys() :
 						branches_to_copy[b.getTTreeName()] = copy.deepcopy(b)
 		#spawn processes for adding events to appropriate processes
-		procs = []
+		filetype = ttree_file_path.split('/')[-1].rstrip('skim_all.root')
 		#first segment the tree
-		print '		Segmenting trees for %d parallel processes...'%(self.__n_procs)
-		for i in range(self.__n_procs) :
-			p = multiprocessing.Process(target=self.copyTreeSegment, args=(ttree_file_path,i,copy.deepcopy(branches_to_copy)))
-			procs.append(p)
-			p.start()
-		for p in procs :
-			p.join()
-		print '		Done.'
+		if self.__n_procs>1 :
+			print '		Segmenting trees for %d processes...'%(self.__n_procs)
+			procs = []
+			for i in range(self.__n_procs) :
+				p = multiprocessing.Process(target=self.copyTreeSegment, args=(ttree_file_path,i,copy.deepcopy(branches_to_copy)))
+				procs.append(p)
+				p.start()
+			for p in procs :
+				p.join()
+			print '		Done.'
 		#now actually add the events from the segmented trees to the total process
 		print '		Adding events from trees to process trees...'
-		procs = []
-		for i in range(self.__n_procs) :
-			p = multiprocessing.Process(target=self.filterCopyTree, args=(i==self.__n_procs-1,i,ttree_file_path,ps_for_file))
-			#p = multiprocessing.Process(target=self.filterCopyTree, args=(True,i,ttree_file_path,ps_for_file))
-			procs.append(p)
-			p.start()
-		#make sure all processes completed 
-		for p in procs :
-			p.join()
+		if self.__n_procs>1 :
+			procs = []
+			for i in range(self.__n_procs) :
+				p = multiprocessing.Process(target=self.filterCopyTree, args=(i==self.__n_procs-1,i,ttree_file_path,ps_for_file))
+				#p = multiprocessing.Process(target=self.filterCopyTree, args=(True,i,ttree_file_path,ps_for_file))
+				procs.append(p)
+				p.start()
+			#make sure all processes completed 
+			for p in procs :
+				p.join()
+			print '		Removing segmented tree files'
+			os.system('rm -rf '+filetype+'_segment_*.root')
+			print '		Done.'
+		else :
+			self.filterCopyTree(True,0,ttree_file_path,ps_for_file)
 		#remove the garbage files that held the segmented trees
-		print '		Removing segmented tree files'
-		os.system('rm -rf segment_*.root')
-		print '		Done.'
 		#hadd together the separate process tree files
-		print '		Aggregating process tree files'
-		filetype = ttree_file_path.split('/')[-1].rstrip('skim_all.root')
-		cmd = 'hadd -f '+filetype+'_'+self.__outname+'_process_trees_all.root '
-		for i in range(self.__n_procs) :
-			cmd+=filetype+'_'+self.__outname+'_process_trees_'+str(i+1)+'.root '
-		os.system(cmd)
-		os.system('rm -rf '+filetype+'_'+self.__outname+'_process_trees_?.root '+filetype+'_'+self.__outname+'_process_trees_??.root')
+		if self.__n_procs>1 :
+			print '		Aggregating process tree files'
+			cmd = 'hadd -f '+filetype+'_'+self.__outname+'_process_trees_all.root '
+			for i in range(self.__n_procs) :
+				cmd+=filetype+'_'+self.__outname+'_process_trees_'+str(i+1)+'.root '
+			os.system(cmd)
+			os.system('rm -rf '+filetype+'_'+self.__outname+'_process_trees_?.root '+filetype+'_'+self.__outname+'_process_trees_??.root')
+		else :
+			print 'moving filename'
+			os.system('mv '+filetype+'_'+self.__outname+'_process_trees_1.root '+filetype+'_'+self.__outname+'_process_trees_all.root')
 		print '		Done'
 
 	def copyTreeSegment(self,ttree_file_path,i,bdict) :
@@ -117,7 +125,7 @@ class Template_Group(object) :
 		if i==self.__n_procs-1 :
 			thisend = nEntries
 		#open a garbage file to hold the new tree
-		garbageFile = TFile('segment_'+str(i+1)+'.root','recreate')
+		garbageFile = TFile(ttree_file_path.split('/')[-1].rstrip('skim_all.root')+'_segment_'+str(i+1)+'.root','recreate')
 		#print '		Begin copying tree segment %d of %d (entries %d to %d, %d of %d total entries)'%(i+1,self.__n_procs,thisstart,thisend,thisend-thisstart,nEntries) #DEBUG
 		#thistree = tree.CopyTree('','',thisnentries,thisstart)
 		thistree = tree.CloneTree(0)
@@ -131,7 +139,7 @@ class Template_Group(object) :
 
 	def filterCopyTree(self,printbool,iproc,ttree_file_path,ps_for_file) :
 		#get the segmented tree
-		filep = TFile('segment_'+str(iproc+1)+'.root')
+		filep = TFile(ttree_file_path.split('/')[-1].rstrip('skim_all.root')+'_segment_'+str(iproc+1)+'.root') if self.__n_procs>1 else TFile(ttree_file_path)
 		tree = filep.Get('tree')
 		nentries = tree.GetEntries()
 		#print 'number of entries for tree in %s = %d'%(multiprocessing.current_process().name,nentries) #DEBUG
@@ -197,7 +205,7 @@ class Template_Group(object) :
 					pname = process.getName()
 					#for ttbar files, cut on the event type
 					if checkeventtype :
-						if ((pname.find('fqq')!=-1 or pname.find('fqp')!=-1 or pname.find('fqm')!=-1) and etype!=0) or (pname.find('fg')!=-1 and etype!=1) or (pname.find('fbck')!=-1 and etype!=2 and etype!=3) :
+						if ((pname.find('fqq')!=-1 or pname.find('fqp')!=-1 or pname.find('fqm')!=-1 or pname.find('fq0')!=-1 or pname.find('fq1')!=-1 or pname.find('fq2')!=-1) and etype!=0) or (pname.find('fg')!=-1 and etype!=1) or (pname.find('fbck')!=-1 and etype!=2 and etype!=3) :
 							continue
 					#if we made it to this point, this event should be copied into the process's tree(s)!!
 					#get the contribution weight
@@ -246,13 +254,18 @@ class Template_Group(object) :
 					for branch in tree_cut_branches.values() :
 						tree.SetBranchAddress(branch.getTTreeName(),branch.getTTreeArray())
 		#write all the trees
+		print 'writing trees...'
 		for p in treedicts.keys() :
-			for key, value in treedicts[p].iteritems() :
+			for key in treedicts[p] :
 				if key!='branches' :
+					print '	writing for process %s and key %s'%(p,key)
 					treedicts[p][key].Write()
+		print 'done.'
 		#close the files
-		ptreesfilep.Close()
-		filep.Close()
+		#print 'closing files...'
+		#ptreesfilep.Close()
+		#filep.Close()
+		#print 'done.'
 
 	def build_QCD_templates(self,ptree_filename) :
 		self.__ptree_filename = ptree_filename
@@ -324,6 +337,7 @@ class Template_Group(object) :
 					if t.getModifier()==None :
 						continue
 					temp1D,binlist=t.convertTo1D(bins_to_zero[p.getName()],nom_1D_histos[p.getName()])
+					#temp1D,binlist=t.convertTo1D() #with the JEC wiggles so separated I can't zero bins any longer
 					hist_list.append(temp1D)
 		return hist_list
 
@@ -607,13 +621,13 @@ def fillTree(ttree_file_path,jecmodlist,ptreedict,isMCProcess,isFitProcess,regio
 	elif regioncutdict['qcd_C'] :
 		treestring='qcd_c'
 	#If it's a MC or Fit distribution, add the JEC part of the name to the tree identifier if necessary
-	if (isMCProcess or isFitProcess) and (ttree_file_path.find('_up')!=-1 or ttree_file_path.find('_down')!=-1) :
+	if (isMCProcess or isFitProcess) and (ttree_file_path.find('_up')!=-1 or ttree_file_path.find('_dn')!=-1 or ttree_file_path.find('_down')!=-1) :
 		JEC_ID = ''
 		for jecmod in jecmodlist :
 			if ttree_file_path.find(jecmod.getName()+'_up') != -1 :
 				JEC_ID = jecmod.getName()+'Up'
 				break
-			elif ttree_file_path.find(jecmod.getName()+'_down') != -1 :
+			elif ttree_file_path.find(jecmod.getName()+'_dn') != -1 or ttree_file_path.find(jecmod.getName()+'_down') != -1 :
 				JEC_ID = jecmod.getName()+'Down'
 				break
 		treestring+='_'+JEC_ID

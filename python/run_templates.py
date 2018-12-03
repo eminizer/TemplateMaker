@@ -83,8 +83,8 @@ if (not os.path.isfile(proc_tree_file_path)) or options.force_rb_ptrees.lower()=
 		input_file_path+='./tardir/'
 	else:
 		input_file_path+='./'
-	input_file_path+=options.input.lower()
-	if not '.txt' in options.input.lower() :
+	input_file_path+=options.input
+	if not '.txt' in options.input :
 		input_file_path+='.txt'
 	input_file = open(input_file_path,'r')
 	#Read the files at the path
