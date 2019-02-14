@@ -337,7 +337,7 @@ class Template_Group(object) :
 					if t.getModifier()==None :
 						continue
 					#temp1D,binlist=t.convertTo1D(bins_to_zero[p.getName()],nom_1D_histos[p.getName()])
-					temp1D,binlist=t.convertTo1D() #with the JEC wiggles so separated I can't zero bins any longer
+					temp1D,binlist=t.convertTo1D() #with the systematics separated I can't zero bins here any longer
 					hist_list.append(temp1D)
 		return hist_list
 
