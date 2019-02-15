@@ -16,6 +16,10 @@ infilep = TFile('../total_template_files/templates_powheg_aggregated_all_aux.roo
 
 #lepton types names to sum over
 leptypes = ['elplus','elminus','muplus','muminus']
+#leptypes = ['elplus']
+#leptypes = ['elminus']
+#leptypes = ['muplus']
+#leptypes = ['muminus']
 
 #lists of systematics names and colors
 systematics = [('pileup_weight',			 kRed,'Pileup Weight'),
@@ -42,9 +46,9 @@ systematics = [('pileup_weight',			 kRed,'Pileup Weight'),
 			   ('fsr',				 		 kPink-6,'FSR'),
 			   ('hdamp',				 	 kOrange,'hDamp'),
 			   ('tune',				 		 kOrange+7,'underlying event'),
-			   ('color_reconnection',		 kViolet+2,'color reconnection'),
+			   ('cr', 						 kViolet+2,'color reconnection'),
 			   ]
-ttbar_only = ['top_pt_re_weight','ren_scale_weight','fact_scale_weight','comb_scale_weight','pdfas_weight','B_frag_weight','B_br_weight','isr','fsr','hdamp','tune','color_reconnection']
+ttbar_only = ['top_pt_re_weight','ren_scale_weight','fact_scale_weight','comb_scale_weight','pdfas_weight','B_frag_weight','B_br_weight','isr','fsr','hdamp','tune','cr']
 #dictionary of histogram lists
 #first key: topology
 #second key: region

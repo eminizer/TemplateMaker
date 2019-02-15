@@ -9,7 +9,7 @@ from template import Template
 outfilenames = {'temp':'templates_powheg_aggregated_all.root','aux':'templates_powheg_aggregated_all_aux.root'}
 
 #dict of filenames holding otherwise nominal templates and all other systematic variations
-base_templates_filenames = {'temp':'templates_nominal_powheg_all.root','aux':'templates_nominal_powheg_all_aux.root'}
+base_templates_filenames = {'temp':'../template_dirs/powheg_TT_ss_and_JEC/templates.root','aux':'../template_dirs/powheg_TT_ss_and_JEC/templates_aux.root'}
 
 #channel names
 channel_names = []
@@ -63,6 +63,11 @@ for ft in filetypes :
 		#print '	reading key %s'%(k) #DEBUG
 		newobj = k.ReadObj()
 		all_objs[ft].append(newobj)
+		#check if this is one of the templates in the nominal file that needs to be renormalized
+		n=k.GetName()
+		if n.find('__JES')!=-1 or n.find('__JER')!=-1 or n.find('__B_br_weight')!=-1 or n.find('__pdfas_weight')!=-1 :
+			norm = all_fps['nominal_'+ft].Get(n.split('__')[0]+'__'+n.split('__')[1]).Integral()
+			all_objs[ft][-1].Scale(norm/all_objs[ft][-1].Integral())
 	print 'Done.'
 
 #get objects from the files that just need to be renamed and added
