@@ -438,6 +438,26 @@ class Template(object) :
 		return self.__histo_z
 	def getHistos(self) :
 		return [self.__histo_3D,self.__histo_x,self.__histo_y,self.__histo_z]
+	def getXbinArray(self) :
+		return self._XBINS
+	def getYbinArray(self) :
+		return self._YBINS
+	def getZbinArray(self) :
+		return self._ZBINS
+	def getCoordsFrom1DBin(self,binnumber) :
+		nglobalbins = self.__histo_3D.GetSize()
+		global1Dbincounter = 0
+		for k in range(nglobalbins) :
+			if not self.__histo_3D.IsBinOverflow(k) and not self.__histo_3D.IsBinUnderflow(k) :
+				global1Dbincounter+=1
+				if binnumber==global1Dbincounter :
+					binx = array('i',[0]); biny = array('i',[0]); binz = array('i',[0])
+					self.__histo_3D.GetBinXYZ(k,binx,biny,binz)
+					thisx = self.__histo_x.GetBinCenter(binx[0])
+					thisy = self.__histo_y.GetBinCenter(biny[0])
+					thisz = self.__histo_z.GetBinCenter(binz[0])
+					break
+		return thisx, thisy, thisz				
 	def setHistos(self,hlist) :
 		self.__histo_3D = hlist[0]
 		self.__histo_x  = hlist[1]

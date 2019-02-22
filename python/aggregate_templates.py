@@ -6,7 +6,7 @@ import os
 from template import Template
 
 #filename for total output
-outfilenames = {'temp':'templates_powheg_aggregated_all.root','aux':'templates_powheg_aggregated_all_aux.root'}
+outfilenames = {'temp':'templates_powheg_aggregated_v3_all.root','aux':'templates_powheg_aggregated_v3_all_aux.root'}
 
 #dict of filenames holding otherwise nominal templates and all other systematic variations
 base_templates_filenames = {'temp':'../template_dirs/powheg_TT_ss_and_JEC/templates.root','aux':'../template_dirs/powheg_TT_ss_and_JEC/templates_aux.root'}
