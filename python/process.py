@@ -404,13 +404,13 @@ class QCD_Process(Process) :
 		self.__mc_process_list = copy.deepcopy(mc_plist)
 		#Add modifiers and templates required by the MC_Processes
 		self.__add_mc_fit_parameters__()
-		self.__add_fit_parameter_templates__()
+		#self.__add_fit_parameter_templates__()
 		self.__add_jec_modifiers__()
-		if include_JEC :
-			self.__add_JEC_templates__()
+		#if include_JEC :
+		#	self.__add_JEC_templates__()
 		self.__add_ss_modifiers__()
-		if include_sss :
-			self.__add_ss_templates__()
+		#if include_sss :
+		#	self.__add_ss_templates__()
 		#Initialize the tree
 		self.__initialize_trees__()
 

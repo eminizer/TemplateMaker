@@ -301,43 +301,20 @@ class Template_Group(object) :
 		for c in self.__channel_list :
 			for p in c.getProcessList() :
 				for t in p.getTemplateList() :
-					self.__aux_obj_list.append(t.getHisto3D())
-					self.__aux_obj_list.append(t.getHistoX())
-					self.__aux_obj_list.append(t.getHistoY())
-					self.__aux_obj_list.append(t.getHistoZ())
+					thesehistos = t.getHistos()
+					for h in thesehistos.values() :
+						self.__aux_obj_list.append(h)
+						self.__aux_obj_list.append(h.ProjectionX())
+						self.__aux_obj_list.append(h.ProjectionY())
 		return self.__aux_obj_list
 
 	def get_list_of_1D_histos(self) :
 		hist_list = []
 		#convert templates to 1D
 		for c in self.__channel_list :
-			#do observed data templates first
 			for p in c.getProcessList() :
-				if p.isDataProcess() :
-					for t in p.getTemplateList() :
-						temp1D,binlist=t.convertTo1D()
-						hist_list.append(temp1D)
-			#next do all the nominal templates, making a dictionary of the bins to zero for each process along the way
-			bins_to_zero = {}
-			nom_1D_histos = {}
-			for p in c.getProcessList() :
-				if p.isDataProcess() :
-					continue
 				for t in p.getTemplateList() :
-					if t.getModifier()==None :
-						temp1D,binlist=t.convertTo1D()
-						bins_to_zero[p.getName()]=binlist
-						nom_1D_histos[p.getName()]=temp1D
-						hist_list.append(temp1D)
-			#finally do all the systematics wiggle templates
-			for p in c.getProcessList() :
-				if p.isDataProcess() :
-					continue
-				for t in p.getTemplateList() :
-					if t.getModifier()==None :
-						continue
-					#temp1D,binlist=t.convertTo1D(bins_to_zero[p.getName()],nom_1D_histos[p.getName()])
-					temp1D,binlist=t.convertTo1D() #with the systematics separated I can't zero bins here any longer
+					temp1D=t.convertTo1D()
 					hist_list.append(temp1D)
 		return hist_list
 
@@ -483,7 +460,10 @@ class Template_Group(object) :
 			for p in c.getProcessList() :
 				for t in p.getTemplateList() :
 					print '		Resetting NQCD value for template %s (channel %s, process %s, template type %s'%(t.getName(),c.getName(),p.getName(),t.getType())
-					t.setNQCDValue(nqcd_values2[c.getTopology()+'_'+c.getRegion()][t.getType()])
+					if t.getType() in nqcd_values2[c.getTopology()+'_'+c.getRegion()].keys() :
+						t.setNQCDValue(nqcd_values2[c.getTopology()+'_'+c.getRegion()][t.getType()])
+					else :
+						t.setNQCDValue(nqcd_values2[c.getTopology()+'_'+c.getRegion()]['nominal'])
 		#add the nominal NQCD values in each region to the auxiliary object list
 		for cidentifier in nqcd_values2.keys() :
 			if len(nqcd_values2[cidentifier].keys())<1 :

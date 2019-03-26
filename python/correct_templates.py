@@ -2,27 +2,29 @@
 import random
 from ROOT import TFile
 
+ZEROED_BIN_CONTENT=0.000001
+
 #correction function
 def correct_template(nom,up,dn) :
   #loop over the bins
   for i in range(1,nom.GetNbinsX()+1) :
     #if this bin is zeroed in the nominal template, zero it in the shifted templates
-    if nom.GetBinContent(i)==0.00010 :
-      up.SetBinContent(i,0.00010*1.005*random.random())
-      dn.SetBinContent(i,0.00010*0.995*random.random())
+    if nom.GetBinContent(i)==ZEROED_BIN_CONTENT :
+      up.SetBinContent(i,ZEROED_BIN_CONTENT)
+      dn.SetBinContent(i,ZEROED_BIN_CONTENT)
     #otherwise if it's zeroed in a shifted template, set that bin's content to the nominal content
-    elif abs(up.GetBinContent(i)-0.00010)<0.000005 :
-      up.SetBinContent(i,nom.GetBinContent(i)*1.005*random.random())
-    elif abs(dn.GetBinContent(i)-0.00010)<0.000005 :
-      dn.SetBinContent(i,nom.GetBinContent(i)*0.995*random.random())
+    elif abs(up.GetBinContent(i)-ZEROED_BIN_CONTENT)<0.000005 :
+      up.SetBinContent(i,nom.GetBinContent(i))
+    elif abs(dn.GetBinContent(i)-ZEROED_BIN_CONTENT)<0.000005 :
+      dn.SetBinContent(i,nom.GetBinContent(i))
   #return the shifted templates
   return up,dn
 
 #the aggregated template filename
-old_fn='templates_powheg_aggregated_v3_all.root'
+old_fn='templates_powheg_dynamic_binning_aggregated_v4_all.root'
 
 #the corrected template filename
-new_fn='templates_powheg_corrected_v3_all.root'
+new_fn='templates_powheg_dynamic_binning_corrected_v4_all.root'
 
 #which systematics should we check?
 sys_to_correct = ['JES','JER','isr','fsr','hdamp','tune','cr']
@@ -53,13 +55,13 @@ for sys in sys_to_correct :
   for c in cnames :
     for p in  pnames :
       #get the old templates
-      nom=old_f.Get(c+'__'+p); altered_keys.append(c+'__'+p)
+      nom=old_f.Get(c+'__'+p); #altered_keys.append(c+'__'+p)
       up=old_f.Get(c+'__'+p+'__'+sys+'Up'); altered_keys.append(c+'__'+p+'__'+sys+'Up')
       dn=old_f.Get(c+'__'+p+'__'+sys+'Down'); altered_keys.append(c+'__'+p+'__'+sys+'Down')
       #get the corrected templates
       newup, newdown = correct_template(nom,up,dn)
       #set them to write to the new file
-      nom.SetDirectory(new_f)
+      #nom.SetDirectory(new_f)
       newup.SetDirectory(new_f)
       newdown.SetDirectory(new_f)
 
