@@ -6,7 +6,7 @@ import os
 from template import Template
 
 #filename for total output
-outfilenames = {'temp':'templates_powheg_dynamic_binning_aggregated_v5_all.root','aux':'templates_powheg_dynamic_binning_aggregated_v5_all_aux.root'}
+outfilenames = {'temp':'templates_powheg_dynamic_binning_aggregated_sep_sample_symmetrized_all.root','aux':'templates_powheg_dynamic_binning_aggregated_sep_sample_symmetrized_all_aux.root'}
 
 #dict of filenames holding otherwise nominal templates and all other systematic variations
 base_templates_filenames = {'temp':'templates_powheg_dynamic_binning_JEC_and_simple_sys_all.root','aux':'templates_powheg_dynamic_binning_JEC_and_simple_sys_all_aux.root'}
@@ -100,46 +100,6 @@ for ft in filetypes :
 		#		all_objs[ft][-1].Scale(norm/all_objs[ft][-1].Integral())
 	print 'Done.'
 
-##get objects from the files that just need to be renamed and added
-#for syswig in simple_add_files_dict.keys() :
-#	for ft in filetypes :
-#		print 'getting objects from %s...'%(simple_add_files_dict[syswig][ft])
-#		all_fps[syswig+'_'+ft] = TFile(simple_add_files_dict[syswig][ft],'r')
-#		#loop over channels and processes
-#		for cn in channel_names :
-#			for pn in process_names :
-#				#build the old and new template name
-#				old_template_name = cn+'__'+pn
-#				new_template_name = cn+'__'+pn+'__'+syswig
-#				#print old_template_name #DEBUG
-#				#get the nominal template to renormalize these to the same expected yield
-#				nominal_template = all_fps['nominal_temp'].Get(old_template_name)
-#				#if we're doing templates just get the old, rename, renormalize, and add it to the list of new
-#				if ft=='temp' :
-#					histo = all_fps[syswig+'_'+ft].Get(old_template_name)
-#					histo.SetName(new_template_name)
-#				#	histo.Scale(nominal_template.Integral()/histo.Integral())
-#					all_objs[ft].append(histo)
-#				#if we're doing the auxiliary objects we need the 3D template and its projections
-#				elif ft=='aux' :
-#					histo_3D = all_fps[syswig+'_'+ft].Get(old_template_name)
-#					histo_x  = all_fps[syswig+'_'+ft].Get(old_template_name+'_x')
-#					histo_y  = all_fps[syswig+'_'+ft].Get(old_template_name+'_y')
-#					histo_z  = all_fps[syswig+'_'+ft].Get(old_template_name+'_z')
-#					histo_3D.SetName(new_template_name)
-#					histo_x.SetName(new_template_name+'_x')
-#					histo_y.SetName(new_template_name+'_y')
-#					histo_z.SetName(new_template_name+'_z')
-#				#	histo_3D.Scale(nominal_template.Integral()/histo_3D.Integral())
-#				#	histo_x.Scale(nominal_template.Integral()/histo_x.Integral())
-#				#	histo_y.Scale(nominal_template.Integral()/histo_y.Integral())
-#				#	histo_z.Scale(nominal_template.Integral()/histo_z.Integral())
-#					all_objs[ft].append(histo_3D)
-#					all_objs[ft].append(histo_x)
-#					all_objs[ft].append(histo_y)
-#					all_objs[ft].append(histo_z)
-#		print 'Done.'
-
 #handle the other separate sample systematics, for which we want an envelope around the up/down scenarios
 print 'Building separate sample systematic templates...'
 for sn in simple_add_files_dict.keys() :
@@ -159,9 +119,9 @@ for sn in simple_add_files_dict.keys() :
 			if not sn+'_dn' in all_fps.keys() :
 				all_fps[sn+'_dn'] = TFile(simple_add_files_dict[sn]['Down']['temp'],'r')
 			orig_dn_template = all_fps[sn+'_dn'].Get(old_template_name)
-			##renormalize to the same event yield as the nominal template
-			#orig_up_template.Scale(nominal_template.Integral()/orig_up_template.Integral())
-			#orig_dn_template.Scale(nominal_template.Integral()/orig_dn_template.Integral())
+			#renormalize to the same event yield as the nominal template
+			orig_up_template.Scale(nominal_template.Integral()/orig_up_template.Integral())
+			orig_dn_template.Scale(nominal_template.Integral()/orig_dn_template.Integral())
 			#create new Template objects for up/down scenarios and get their unfilled 1D templates
 			new_up_template_obj = Template(new_template_name_up,old_template_name+' '+sn+' up template',None)
 			new_dn_template_obj = Template(new_template_name_dn,old_template_name+' '+sn+' down template',None)
@@ -169,13 +129,16 @@ for sn in simple_add_files_dict.keys() :
 			new_dn_template_histo = new_dn_template_obj.convertTo1D()
 			#loop over the bins 
 			for i in range(1,nominal_template.GetNbinsX()+1) :
-				#set the up/down templates' bin contents equal to nominal +/- 1/2 up-down 
 				nomcont=nominal_template.GetBinContent(i)
 				upcont=orig_up_template.GetBinContent(i)
 				dncont=orig_dn_template.GetBinContent(i)
+				#set the up/down templates' bin contents equal to nominal +/- 1/2 up-down 
 				shift = 0.5*(upcont-dncont)
 				new_up_template_histo.SetBinContent(i,nomcont+shift)
 				new_dn_template_histo.SetBinContent(i,nomcont-shift)
+				##set the up/down templates' bin contents equal to their original values 
+				#new_up_template_histo.SetBinContent(i,upcont)
+				#new_dn_template_histo.SetBinContent(i,dncont)
 			#correct the templates
 			new_up_template_histo = correct_template(nominal_template,new_up_template_histo)
 			new_dn_template_histo = correct_template(nominal_template,new_dn_template_histo)

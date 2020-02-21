@@ -21,7 +21,7 @@ t1_M_in_one = array('d',[350.,5550.])
 t1_M_in_two = array('d',[350.,1100.,5550.])
 t1_M_in_three = array('d',[350.,900.,1250.,5550.])
 t1_M_in_six = array('d',[350.,700.,900.,1075.,1250.,1600.,5550.])
-t2_M_in_one = array('d',[350.,4500.])
+t2_M_in_one = array('d',[350.,5650.])
 t2_M_in_two = array('d',[350.,730.,5650.])
 t2_M_in_three = array('d',[350.,730.,860.,5650.])
 t2_M_in_six = array('d',[350.,550.,650.,750.,875.,1050.,5650.])
@@ -295,7 +295,7 @@ class Template(object) :
 
 	#convertTo1D takes the list of 2D histograms and makes it into one unrolled 1D for use with combine
 	def convertTo1D(self) :
-		newHisto = TH1D(self._name,self._formatted_name,self._ntotalbins,0.,self._ntotalbins-1.)
+		newHisto = TH1D(self._name,self._formatted_name,self._ntotalbins,0.,self._ntotalbins)
 		newHisto.SetDirectory(0)
 		realbincounter = 1
 		sortedytlist = sorted(self._histos)

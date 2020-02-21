@@ -28,7 +28,7 @@ parser.add_option('--Afb', 	  type='float', action='store', default=0.0, dest='A
 parser.add_option('--mu', 	  type='float', action='store', default=0.0, dest='mu', 	help='mu value')
 parser.add_option('--d', 	  type='float', action='store', default=0.0, dest='d', 		help='d value')
 #fit parameters uncertainties
-parser.add_option('--Rqqbar_sigma', type='float',  action='store', default=0.01,		 dest='Rqqbar_sigma', help='Rqqbar scale factor uncertainty')
+parser.add_option('--Rqqbar_sigma', type='float',  action='store', default=0.01,	 dest='Rqqbar_sigma', help='Rqqbar scale factor uncertainty')
 parser.add_option('--Rbck_sigma', 	type='float',  action='store', default=0.1,		 dest='Rbck_sigma',   help='Rbck scale factor uncertainty')
 parser.add_option('--Rwjets_sigma', type='float',  action='store', default=0.1,		 dest='Rwjets_sigma',   help='Rwjets scale factor uncertainty')
 parser.add_option('--Rqcd_sigma', 	type='float',  action='store', default=0.3,		 dest='Rqcd_sigma',   help='Rqcd scale factor uncertainty')

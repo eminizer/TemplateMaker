@@ -7,13 +7,12 @@ ZEROED_BIN_CONTENT=0.000001
 gROOT.SetBatch()
 
 #name of file with templates to skim from
-#ifn = 'templates_powheg_dynamic_binning_corrected_all.root'
-#ifn = 'templates_powheg_dynamic_binning_vetoed_v7_alt_in_halves.root'
-#ifn = 'templates_powheg_dynamic_binning_aggregated_v5_all.root'
-ifn = 'templates_powheg_dynamic_binning_vetoed_v10_in_halves.root'
+ifn = 'templates_powheg_dynamic_binning_aggregated_sep_sample_symmetrized_all.root'
+#ifn = 'templates_powheg_dynamic_binning_vetoed_to_remove_mass_bins.root'
 #name of file to put new templates in
-#ofn = 'templates_powheg_dynamic_binning_vetoed_v10_in_halves.root'
-ofn = 'templates_powheg_dynamic_binning_vetoed_v10.root'
+#ofn = 'templates_powheg_dynamic_binning_vetoed_to_remove_mass_bins.root'
+ofn = 'templates_powheg_dynamic_binning_consolidated_for_tuning.root'
+#ofn = 'templates_powheg_dynamic_binning_consolidated_for_smoothing.root'
 
 #dict of channels with single/ranges of bins to remove from the fit
 veto = {'t1_mu':{'singles':[],
@@ -90,7 +89,7 @@ tosuminhalves = {'t1_mu':[(1,4),  (7,8),(9,10),  (11,12),
 				 		  (149,151),(153,155),  (158,161),  (163,165),
 						  ],
 }
-toremovemassbins = {'t1_mu':[(1,2),(2,4),(4,5),
+toremovemassbins = {'t1_mu':[(1,2),(2,4),(4,5), #run after "tosuminhalves"
 							 (5,6),(6,8),(8,9),
 							 ],
 					't1_el':[], #already no mass binning
@@ -102,18 +101,28 @@ toremovemassbins = {'t1_mu':[(1,2),(2,4),(4,5),
 					't3_el':[(1,6),(6,8),(8,10),(10,14),(14,16),(16,17),(17,18),
 							 (18,23),(23,25),(25,27),(27,31),(31,33),(33,34),(34,35),],
 }
-cstarpmonly = {'t1_mu':[(1,5),(5,9)],
+cstarpmonly = {'t1_mu':[(1,5),(5,9)], #run after "tosuminhalves"
 			   't1_el':[(1,4),(4,7)],
 			   't2_mu':[(1,12),(12,23)],
 			   't2_el':[(1,3),(3,5)],
 			   't3_mu':[(1,22),(22,43)],
 			   't3_el':[(1,18),(18,35)],
 }
+onebinperchannel = {'t1_mu':[(1,13)],
+			   't1_el':[(1,9)],
+			   't2_mu':[(1,47)],
+			   't2_el':[(1,7)],
+			   't3_mu':[(1,223)],
+			   't3_el':[(1,165)],
+}
 
 
 #set the one to use
+#consolidate = cstarpmbins
 #consolidate = tosuminhalves
-consolidate = cstarpmonly
+#consolidate = toremovemassbins
+#consolidate = cstarpmonly
+consolidate = onebinperchannel
 
 #check that you weren't very silly with the veto/consolidate options
 goodopts = True
